@@ -85,7 +85,7 @@ async function flashAt(port, manifest, baudrate, seen, { onStatus = () => {}, on
 }
 
 // RTS asserted with DTR released pulls the chip's reset line, through the auto-reset
-// circuit of a dev board or its emulation in the USB Serial/JTAG peripheral. The
+// circuit of a dev board or its Sooralation in the USB Serial/JTAG peripheral. The
 // loader's own hard reset (esptool-js 0.6.1) only ever releases RTS, which leaves the
 // chip sitting in the flasher stub.
 async function hardReset(transport) {

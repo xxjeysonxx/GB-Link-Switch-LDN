@@ -13,7 +13,7 @@
    asks only once); the parent validates a consecutive mod-8 tag on every child
    command. The scripts follow trade.c / trade_scene.c: the retail child runs
    five standby rounds after a trade, the Switch parent six. Fault knobs drop frames
-   the way the Switch emulator and the adapter path do. */
+   the way the Switch Sooralator and the adapter path do. */
 
 #include "trade_shim.h"
 
@@ -352,7 +352,7 @@ static int run(const char *label, scenario_t sc, int verbose)
             uint8_t repeat[73];
             if (trade_shim_host_inject(now, repeat, sizeof(repeat))) host_enqueue(repeat);
         }
-        /* The emulator dropping the parent's own answer to one round, both copies. */
+        /* The Sooralator dropping the parent's own answer to one round, both copies. */
         bool dropped = sc.lose_parent_answer && p.recv[0].w[0] == CMD_STANDBY && p.recv[0].w[1] == sc.lose_parent_answer && lost_answer_copies < 2;
         if (dropped) ++lost_answer_copies;
         else host_enqueue(hf);

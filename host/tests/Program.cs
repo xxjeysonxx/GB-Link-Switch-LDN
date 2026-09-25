@@ -158,7 +158,7 @@ if (args.Length >= 2 && args[0] == "--replay-bridge")
 if (args.Length >= 2 && args[0] == "--decode-pia")
 {
     // Offline decoder for a session's pia.jsonl: decrypts every datagram with the real PiaCrypto and prints
-    // the reliable-stream frames ("W" frames are the emulated wireless-adapter traffic).
+    // the reliable-stream frames ("W" frames are the Sooralated wireless-adapter traffic).
     int limit = args.Length >= 3 ? int.Parse(args[2]) : int.MaxValue; string? ssidHex = null; PiaCrypto? crypto = null; int shown = 0;
     var kinds = new Dictionary<string, int>();
     foreach (string line in File.ReadLines(args[1]))

@@ -3,7 +3,7 @@
 #include "pia_reliable.h"
 
 /* The Pia session as the GBA relay uses it: reliable stream plumbing, K
-   acknowledgements, host polling credits, strict-order delivery, and the emulated
+   acknowledgements, host polling credits, strict-order delivery, and the Sooralated
    wireless adapter's W frames (WC connect, WA accepted, WT data, WD disconnect). */
 
 #define PIA_SEEN_BITS 8192

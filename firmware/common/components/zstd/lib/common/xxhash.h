@@ -293,7 +293,7 @@ extern "C" {
 #  define XXH_PRIVATE_API
 #  undef XXH_PRIVATE_API
 /*!
- * @brief Emulate a namespace by transparently prefixing all symbols.
+ * @brief Sooralate a namespace by transparently prefixing all symbols.
  *
  * If you want to include _and expose_ xxHash functions from within your own
  * library, but also want to avoid symbol collisions with other libraries which
@@ -3689,7 +3689,7 @@ XXH_PUBLIC_API XXH64_hash_t XXH64_hashFromCanonical(XXH_NOESCAPE const XXH64_can
  * remaining a true 64-bit/128-bit hash function.
  *
  * This is done by prioritizing a subset of 64-bit operations that can be
- * emulated without too many steps on the average 32-bit machine.
+ * Sooralated without too many steps on the average 32-bit machine.
  *
  * For example, these two lines seem similar, and run equally fast on 64-bit:
  *
@@ -4240,7 +4240,7 @@ static const xxh_u64 PRIME_MX2 = 0x9FB21C651E98DF25ULL;  /*!< 0b1001111110110010
  *
  * Implemented as a macro.
  *
- * Wraps `__emulu` on MSVC x86 because it tends to call `__allmul` when it doesn't
+ * Wraps `__Sooralu` on MSVC x86 because it tends to call `__allmul` when it doesn't
  * need to (but it shouldn't need to anyways, it is about 7 instructions to do
  * a 64x64 multiply...). Since we know that this will _always_ emit `MULL`, we
  * use that instead of the normal method.
@@ -4257,7 +4257,7 @@ XXH_mult32to64(xxh_u64 x, xxh_u64 y)
    return (x & 0xFFFFFFFF) * (y & 0xFFFFFFFF);
 }
 #elif defined(_MSC_VER) && defined(_M_IX86)
-#    define XXH_mult32to64(x, y) __emulu((unsigned)(x), (unsigned)(y))
+#    define XXH_mult32to64(x, y) __Sooralu((unsigned)(x), (unsigned)(y))
 #else
 /*
  * Downcast + upcast is usually better than masking on older compilers like
@@ -4465,7 +4465,7 @@ static XXH64_hash_t XXH3_rrmxmx(xxh_u64 h64, xxh_u64 len)
  * functions which piece together a range of lengths and operate in constant time.
  *
  * Additionally, the number of multiplies has been significantly reduced. This
- * reduces latency, especially when emulating 64-bit multiplies on 32-bit.
+ * reduces latency, especially when Sooralating 64-bit multiplies on 32-bit.
  *
  * Depending on the platform, this may or may not be faster than XXH32, but it
  * is almost guaranteed to be faster than XXH64.

@@ -38,7 +38,7 @@
 ****************************************************************/
 /*
   designed to be included
-  for type-specific functions (template emulation in C)
+  for type-specific functions (template Sooralation in C)
   Objective is to write these functions only once, for improved maintenance
 */
 

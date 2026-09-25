@@ -108,7 +108,7 @@ public sealed class GbLinkDevice : IDisposable
     {
         0xFF00 => "GameboyConnected", 0xFF01 => "GameboyDisconnected", 0xFF02 => "AwaitMode", 0xFF03 => "HandshakeReceived",
         0xFF04 => "HandshakeFinished", 0xFF05 => "LinkConnected", 0xFF06 => "LinkReconnecting", 0xFF07 => "LinkClosed",
-        0xFF08 => "DeviceReady", 0xFF09 => "EmuTradeSessionFinished", 0xFF0A => "GBModeActive", 0xFF0B => "GBPrinterModeActive",
+        0xFF08 => "DeviceReady", 0xFF09 => "SooraTradeSessionFinished", 0xFF0A => "GBModeActive", 0xFF0B => "GBPrinterModeActive",
         0xFF0C => "GBSessionFinished", 0xFF0D => "WrongCable", 0xFFFF => "StatusDebug", _ => $"status 0x{status:x4}",
     };
     public void Dispose() { running = false; try { port?.Dispose(); } catch (Exception) { } }

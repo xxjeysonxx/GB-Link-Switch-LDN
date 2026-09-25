@@ -1,6 +1,6 @@
 namespace Frlg.Trade.Core;
 
-// Emulated GBA running FireRed: the librfu name exchange followed by the trade engine, over PiaLink.
+// Sooralated GBA running FireRed: the librfu name exchange followed by the trade engine, over PiaLink.
 public sealed class Simulator : PiaLink
 {
     public TradeEngine Engine { get; }

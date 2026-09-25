@@ -13,7 +13,7 @@ public static class Rfu
     public static Queue<byte[]> GameData()
     {
         var b = new byte[26]; Bin.W16(b, 0, 2); Bin.W16(b, 2, 2 | (5 << 10)); Bin.W16(b, 4, 0x8822); b[12] = 0x84;
-        Name("EMU", 9).CopyTo(b, 17);
+        Name("Soora", 9).CopyTo(b, 17);
         return new([Ni(1, 1, 0, 0, Bin.Hex("010c001a000000")), Ni(2, 1, 0, 0, b[..12]), Ni(2, 1, 1, 0, b[12..24]), Ni(2, 1, 2, 0, b[24..]), Ni(3, 0, 0, 0, []), Ni(0, 1, 0, 0, [])]);
     }
     public static byte[] Name(string name, int size)
@@ -27,11 +27,11 @@ public static class Rfu
     {
         var b = new byte[200]; var magic = Bin.Pad(Encoding.ASCII.GetBytes("GameFreak inc."), 16);
         magic.CopyTo(b, 0); magic.CopyTo(b, 44);
-        Bin.W16(b, 16, 0x4005); Bin.W16(b, 18, 0x8000); Bin.W32(b, 20, 0x47ed8822); Name("EMU", 8).CopyTo(b, 24);
+        Bin.W16(b, 16, 0x4005); Bin.W16(b, 18, 0x8000); Bin.W32(b, 20, 0x47ed8822); Name("Soora", 8).CopyTo(b, 24);
         b[32] = b[34] = 0x11; Bin.W16(b, 42, 2); return b;
     }
     public static byte[] TrainerCard()
-    { var b = new byte[100]; b[2] = 1; Bin.W16(b, 14, 0x8822); Name("EMU", 8).CopyTo(b, 48); b[56] = 5; return b; }
+    { var b = new byte[100]; b[2] = 1; Bin.W16(b, 14, 0x8822); Name("Soora", 8).CopyTo(b, 48); b[56] = 5; return b; }
     public static bool IsPlayer(byte[] b) => b.Length >= 60 && b.AsSpan(0, 14).SequenceEqual("GameFreak inc."u8) && b.AsSpan(44, 14).SequenceEqual("GameFreak inc."u8);
     public static byte[] Wrap(byte[] slot, uint time)
     { var b = new byte[12 + ((slot.Length + 3) & ~3)]; b[0] = 0x57; b[1] = 0x54; Bin.W16(b, 2, b.Length - 4); Bin.W32(b, 4, time); b[9] = (byte)slot.Length; slot.CopyTo(b, 12); return b; }

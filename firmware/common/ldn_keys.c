@@ -242,7 +242,7 @@ bool ldn_auth_begin(ldn_auth_t *a, const ldn_network_t *net)
     static uint8_t payload[868];
     const int payload_len = net->version >= 3 ? 868 : 64;
     memset(payload, 0, (size_t)payload_len);
-    memcpy(payload, "EMU", 3);
+    memcpy(payload, "Soora", 3);
     bin_wb16(payload + 32, (uint16_t)net->app_version);
     if (net->version >= 3)
     {

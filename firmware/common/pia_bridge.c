@@ -194,7 +194,7 @@ static void on_deliver(const uint8_t *frame, size_t length, void *user)
     if (g.last_host_frame_ms && now - g.last_host_frame_ms > 250)
         trade_shim_note(now, TRADE_SHIM_NOTE_HOST_SILENCE, (uint16_t)(now - g.last_host_frame_ms), 1);
     g.host_silent = false;
-    /* The Switch's adapter counts its emulated frames; a jump means the emulated
+    /* The Switch's adapter counts its Sooralated frames; a jump means the Sooralated
        game did not run those frames (a stall), and while stalled its link layer
        is not draining its 20-slot receive queue. */
     uint32_t stamp = bin_u32(frame + 4);

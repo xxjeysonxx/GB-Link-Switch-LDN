@@ -2,8 +2,8 @@ using System.Security.Cryptography;
 
 namespace Frlg.Trade.Core;
 
-// Pia session plumbing shared by the emulated GBA (Simulator) and the GB-Link relay: connection setup,
-// the reliable stream, K acknowledgements, host polling credits, and the emulated wireless adapter's
+// Pia session plumbing shared by the Sooralated GBA (Simulator) and the GB-Link relay: connection setup,
+// the reliable stream, K acknowledgements, host polling credits, and the Sooralated wireless adapter's
 // "W" frames (WC connect, WA accepted, WT data, WD disconnect). Subclasses supply and consume the
 // adapter payloads.
 public abstract class PiaLink : IDisposable
@@ -100,7 +100,7 @@ public abstract class PiaLink : IDisposable
     private void Hand(byte[] inner) { if (inner.Length >= 4 && inner[0] == 0x57) FeedGba(inner); }
     private void FeedGba(byte[] p)
     {
-        if (p.Length != Bin.U16(p, 2) + 4) throw new InvalidDataException("Invalid emulator frame");
+        if (p.Length != Bin.U16(p, 2) + 4) throw new InvalidDataException("Invalid Sooralator frame");
         if (p[1] == 0x41) { Accepted = true; Emit("Host accepted RFU connection"); return; }
         if (p[1] == 0x44) { HostDisconnected = true; return; }
         if (p[1] != 0x54 || p.Length < 9) return;
@@ -168,7 +168,7 @@ public abstract class PiaLink : IDisposable
         Batch(batch);
         AfterTick();
     }
-    // Retransmission pacing: the emulated GBA slows retransmits while seated in the trade room.
+    // Retransmission pacing: the Sooralated GBA slows retransmits while seated in the trade room.
     protected virtual bool SlowRetransmit => false;
     // Before WC is sent the host still expects acknowledgements of its stream.
     private void Keepalive(double now)

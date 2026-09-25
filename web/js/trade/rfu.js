@@ -28,7 +28,7 @@ export function gameData() {
     w16(b, 2, 2 | (5 << 10));
     w16(b, 4, 0x8822);
     b[12] = 0x84;
-    b.set(gameName('EMU', 9), 17);
+    b.set(gameName('Soora', 9), 17);
     return [
         ni(1, 1, 0, 0, fromHex('010c001a000000')), ni(2, 1, 0, 0, b.subarray(0, 12)), ni(2, 1, 1, 0, b.subarray(12, 24)),
         ni(2, 1, 2, 0, b.subarray(24)), ni(3, 0, 0, 0, new Uint8Array(0)), ni(0, 1, 0, 0, new Uint8Array(0)),
@@ -65,7 +65,7 @@ export function playerBlock() {
     w16(b, 16, 0x4005);
     w16(b, 18, 0x8000);
     w32(b, 20, 0x47ed8822);
-    b.set(gameName('EMU', 8), 24);
+    b.set(gameName('Soora', 8), 24);
     b[32] = b[34] = 0x11;
     w16(b, 42, 2);
     return b;
@@ -75,7 +75,7 @@ export function trainerCard() {
     const b = new Uint8Array(100);
     b[2] = 1;
     w16(b, 14, 0x8822);
-    b.set(gameName('EMU', 8), 48);
+    b.set(gameName('Soora', 8), 48);
     b[56] = 5;
     return b;
 }

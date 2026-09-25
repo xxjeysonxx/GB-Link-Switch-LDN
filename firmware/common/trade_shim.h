@@ -21,7 +21,7 @@
    sequence tag on every child command, so the injected frame consumes a tag and
    the child's later tags are shifted to stay consecutive.
 
-   Two safeguards cover adapter frames the Switch emulator drops around its own
+   Two safeguards cover adapter frames the Switch Sooralator drops around its own
    stalls: an injected round the parent never answers is re-sent, and a parent
    answer the child never saw (it keeps retrying a barrier the parent has already
    left) is re-sent to the child on the parent's behalf.

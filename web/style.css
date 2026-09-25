@@ -1,31 +1,55 @@
 :root {
-    --bg: #0d0f14;
-    --panel: #161a22;
-    --panel-2: #1c212c;
-    --line: #2a3140;
-    --text: #e8ebf1;
-    --muted: #98a2b3;
-    --accent: #7c8cff;
-    --accent-ink: #0b0d18;
-    --good: #3ecf8e;
-    --warn: #f5b942;
-    --bad: #ff6b6b;
-    color-scheme: dark;
+--bg: #0d0f14;
+--panel: #161a22;
+--panel-2: #1c212c;
+--line: #2a3140;
+--text: #e8ebf1;
+--muted: #98a2b3;
+--accent: #7c8cff;
+--accent-ink: #0b0d18;
+--good: #3ecf8e;
+--warn: #f5b942;
+--bad: #ff6b6b;
+color-scheme: dark;
 }
 
-* { box-sizing: border-box; }
+*, *::before, *::after {
+box-sizing: border-box;
+}
 
 body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+margin: 0;
+background: var(--bg);
+color: var(--text);
+font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
 .masthead, main, footer {
-    max-width: 780px;
-    margin: 0 auto;
-    padding: 0 20px;
+max-width: 96vw;
+margin: 0 auto;
+padding: 0 20px;
+}
+
+main {
+display: flex;
+flex-direction: column;
+gap: 1rem;
+}
+
+#unsupported, #paths, #esp-card, #log-card {
+width: 100%;
+}
+
+/* Fila especial para Trade y Boxes */
+.row-2 {
+display: grid;
+grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+gap: 1.25rem;
+width: 100%;
+}
+
+.row-2[hidden] {
+display: none !important;
 }
 
 .masthead { padding-top: 40px; padding-bottom: 8px; }
@@ -41,29 +65,30 @@ h3 { margin: 0 0 6px; font-size: 1rem; }
 code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.92em; }
 a { color: var(--accent); }
 
-/* The page's two trees: what is linked with the Switch decides which cards follow. */
 .paths { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 12px; margin-top: 22px; }
 .path {
-    display: grid; gap: 3px; align-content: start; text-align: left;
-    padding: 14px 16px; border-radius: 14px;
-    background: var(--panel); font-weight: 400; color: var(--muted);
+display: grid; gap: 3px; align-content: start; text-align: left;
+padding: 14px 16px; border-radius: 14px;
+background: var(--panel); font-weight: 400; color: var(--muted);
 }
 .path strong { color: var(--text); font-size: 1rem; }
 .path span { font-size: 0.88rem; }
 .path .needs {
-    justify-self: start; margin-top: 5px; padding: 1px 9px;
-    border: 1px solid var(--line); border-radius: 99px;
-    font-size: 0.78rem; font-weight: 600; color: var(--text);
+justify-self: start; margin-top: 5px; padding: 1px 9px;
+border: 1px solid var(--line); border-radius: 99px;
+font-size: 0.78rem; font-weight: 600; color: var(--text);
 }
 .path[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .path[aria-selected="true"] strong { color: var(--accent); }
 
 .card {
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 20px;
-    margin: 18px 0;
+background: var(--panel);
+border: 1px solid var(--line);
+border-radius: 14px;
+padding: 20px;
+margin: 0;
+min-width: 0;
+width: 100%;
 }
 
 .card-head { display: flex; gap: 14px; align-items: flex-start; }
@@ -71,20 +96,20 @@ a { color: var(--accent); }
 .sub { margin: 4px 0 0; color: var(--muted); font-size: 0.93rem; }
 
 .step {
-    flex: none;
-    width: 30px; height: 30px;
-    border-radius: 50%;
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    display: grid; place-items: center;
-    font-weight: 600; font-size: 0.9rem; color: var(--muted);
+flex: none;
+width: 30px; height: 30px;
+border-radius: 50%;
+background: var(--panel-2);
+border: 1px solid var(--line);
+display: grid; place-items: center;
+font-weight: 600; font-size: 0.9rem; color: var(--muted);
 }
 
 .dot {
-    flex: none;
-    width: 12px; height: 12px; margin-top: 9px;
-    border-radius: 50%;
-    background: #4a5263;
+flex: none;
+width: 12px; height: 12px; margin-top: 9px;
+border-radius: 50%;
+background: #4a5263;
 }
 .dot.good { background: var(--good); box-shadow: 0 0 10px color-mix(in srgb, var(--good) 60%, transparent); }
 .dot.warn { background: var(--warn); }
@@ -99,10 +124,10 @@ a { color: var(--accent); }
 .status.bad { color: var(--bad); }
 
 .facts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    margin: 14px 0 0;
+display: grid;
+grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+gap: 10px;
+margin: 14px 0 0;
 }
 .facts div { background: var(--panel-2); border-radius: 10px; padding: 9px 12px; }
 .facts dt { color: var(--muted); font-size: 0.78rem; }
@@ -111,13 +136,13 @@ a { color: var(--accent); }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 16px; }
 
 button {
-    font: inherit; font-weight: 600; font-size: 0.93rem;
-    color: var(--text);
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-radius: 9px;
-    padding: 8px 15px;
-    cursor: pointer;
+font: inherit; font-weight: 600; font-size: 0.93rem;
+color: var(--text);
+background: var(--panel-2);
+border: 1px solid var(--line);
+border-radius: 99px;
+padding: 8px 15px;
+cursor: pointer;
 }
 button:hover:not(:disabled) { border-color: var(--accent); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -134,11 +159,11 @@ button.quiet { background: none; font-weight: 500; color: var(--muted); padding:
 .panel .status { margin-top: 4px; }
 
 .drop {
-    display: grid; gap: 2px; justify-items: center; text-align: center;
-    margin-top: 12px; padding: 22px 16px;
-    border: 2px dashed var(--line); border-radius: 12px;
-    color: var(--muted);
-    cursor: pointer;
+display: grid; gap: 2px; justify-items: center; text-align: center;
+margin-top: 12px; padding: 22px 16px;
+border: 2px dashed var(--line); border-radius: 12px;
+color: var(--muted);
+cursor: pointer;
 }
 .drop strong { color: var(--text); }
 .drop.over, .drop:hover, .drop:focus-within { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, transparent); }
@@ -152,9 +177,9 @@ ol.fine li { margin: 4px 0; }
 .more summary { cursor: pointer; color: var(--muted); font-size: 0.9rem; }
 .more input[type=file] { color: var(--muted); font-size: 0.85rem; max-width: 100%; }
 .more input[type=text] {
-    font: inherit; font-size: 0.85rem; color: var(--text);
-    width: min(100%, 24em); padding: 5px 8px;
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+font: inherit; font-size: 0.85rem; color: var(--text);
+width: min(100%, 24em); padding: 5px 8px;
+background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
 }
 .more input[type=text]:disabled { opacity: 0.55; }
 
@@ -165,7 +190,6 @@ ol.fine li { margin: 4px 0; }
 .hint { margin: 4px 0 0; color: var(--muted); font-size: 0.9rem; }
 .hint:empty { display: none; }
 
-/* A card whose step is done: one line, nothing to press. */
 .card.done { padding-top: 16px; padding-bottom: 14px; }
 .card.done .sub { display: none; }
 .card.done .status { margin-top: 8px; }
@@ -176,12 +200,12 @@ ol.fine li { margin: 4px 0; }
 .steps { margin: 14px 0 0; padding: 0; list-style: none; counter-reset: step; }
 .steps li { counter-increment: step; position: relative; padding: 7px 0 7px 34px; color: var(--muted); }
 .steps li::before {
-    content: counter(step);
-    position: absolute; left: 0; top: 6px;
-    width: 22px; height: 22px; border-radius: 50%;
-    display: grid; place-items: center;
-    font-size: 0.78rem; font-weight: 600;
-    border: 1px solid var(--line); background: var(--panel-2);
+content: counter(step);
+position: absolute; left: 0; top: 6px;
+width: 22px; height: 22px; border-radius: 50%;
+display: grid; place-items: center;
+font-size: 0.78rem; font-weight: 600;
+border: 1px solid var(--line); background: var(--panel-2);
 }
 .steps li.current { color: var(--text); }
 .steps li.current::before { border-color: var(--accent); color: var(--accent); }
@@ -190,7 +214,7 @@ ol.fine li { margin: 4px 0; }
 .steps li.current .actions { display: flex; }
 .steps li.current .progress { display: block; }
 
-.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 14px; margin-top: 16px; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 16px; }
 .choice { border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
 .choice p { margin: 0; font-size: 0.93rem; }
 .choice .fine { margin-top: 10px; }
@@ -204,11 +228,11 @@ ol.fine li { margin: 4px 0; }
 #log-card summary { cursor: pointer; list-style-position: inside; }
 #log-card summary h2 { display: inline; }
 #log {
-    margin: 12px 0 0; padding: 12px;
-    max-height: 320px; overflow: auto;
-    background: #0a0c10; border: 1px solid var(--line); border-radius: 10px;
-    font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-    white-space: pre-wrap; overflow-wrap: anywhere;
+margin: 12px 0 0; padding: 12px;
+max-height: 320px; overflow: auto;
+background: #0a0c10; border: 1px solid var(--line); border-radius: 10px;
+font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
 .notice { border-radius: 12px; padding: 13px 16px; margin: 18px 0 0; border: 1px solid var(--line); }
@@ -217,48 +241,46 @@ ol.fine li { margin: 4px 0; }
 footer { padding-top: 6px; padding-bottom: 44px; }
 footer p { color: var(--muted); font-size: 0.82rem; }
 
-
 .switcher { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-top: 16px; padding: 3px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; }
 .switcher button { border: 0; background: none; color: var(--muted); padding: 6px 14px; border-radius: 8px; }
 .switcher button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
 #source-note-pool, #source-note-party { margin-top: 8px; }
 
-/* The answer to the trade on the table, under the Pokémon it is about. */
 .answers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .answers button[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--good); }
 .answers #pool-cancel[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--warn); }
 
-.parties { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; margin-top: 16px; }
+/* Ajustes de expansión interna */
+.parties { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px; }
 .party h3 { color: var(--muted); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 .party .fine { margin-top: 10px; }
 .kept { margin-top: 18px; }
 .kept h3 { color: var(--warn); font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 .kept .fine { margin: 0 0 10px; }
-/* One Pokémon to a row, so a nickname has the column's whole width. Two fit side by
-   side only where the column is wide enough for the names; the zero minimum keeps a
-   long name from widening the grid and pushing the card off the page. */
-.slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 8px; }
+
+/* Permite que las cajas de Pokémon se vuelvan multicolumna dentro de su propia tarjeta */
+.slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
 
 .slot {
-    display: flex; align-items: stretch;
-    min-height: 56px; overflow: hidden;
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px;
+display: flex; align-items: stretch;
+min-height: 56px; overflow: hidden;
+background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px;
 }
 .slot-pick {
-    flex: 1; min-width: 0;
-    display: flex; align-items: center; gap: 9px;
-    padding: 7px 9px; text-align: left;
-    background: none; border: 0; border-radius: 0; color: inherit; font: inherit;
+flex: 1; min-width: 0;
+display: flex; align-items: center; gap: 9px;
+padding: 7px 9px; text-align: left;
+background: none; border: 0; border-radius: 0; color: inherit; font: inherit;
 }
 .slot-tools { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 4px 4px 4px 0; }
 .tool {
-    padding: 1px 6px; font-size: 0.82rem; line-height: 1.35;
-    color: var(--muted); background: var(--panel); border-radius: 6px;
+padding: 1px 6px; font-size: 0.82rem; line-height: 1.35;
+color: var(--muted); background: var(--panel); border-radius: 6px;
 }
 .tool:hover, .tool:focus-visible { color: var(--text); border-color: var(--accent); }
 .glyph { color: var(--text); }
 .slot img { width: 44px; height: 44px; object-fit: contain; image-rendering: pixelated; flex: none; }
-.slot .empty-art { width: 44px; height: 44px; flex: none; border-radius: 9px; border: 1px dashed var(--line); }
+.slot .empty-art { width: 44px; height: 44px; flex: none; border-radius: 99px; border: 1px dashed var(--line); }
 .slot .who { min-width: 0; flex: 1; }
 .slot .name { font-weight: 600; font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .slot .about { color: var(--muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -271,11 +293,17 @@ footer p { color: var(--muted); font-size: 0.82rem; }
 
 [hidden] { display: none !important; }
 
+@media (max-width: 900px) {
+.row-2 {
+grid-template-columns: 1fr;
+}
+}
+
 @media (max-width: 520px) {
-    .card { padding: 16px; }
-    .masthead { padding-top: 26px; }
+.card { padding: 16px; }
+.masthead { padding-top: 26px; }
 }
 
 @media (max-width: 1000px) {
-    body:has(#gblink-launcher-return) .masthead { padding-top: 56px; }
+body:has(#gblink-launcher-return) .masthead { padding-top: 56px; }
 }

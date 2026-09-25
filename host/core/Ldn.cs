@@ -96,7 +96,7 @@ public sealed class LdnAuthentication
     {
         this.network = network; this.keys = keys;
         var payload = new byte[network.Version >= 3 ? 868 : 64];
-        Encoding.UTF8.GetBytes("EMU").CopyTo(payload, 0); Bin.WB16(payload, 32, network.AppVersion);
+        Encoding.UTF8.GetBytes("Soora").CopyTo(payload, 0); Bin.WB16(payload, 32, network.AppVersion);
         if (network.Version >= 3)
         {
             var body = new byte[720]; Bin.W64(body, 8, network.Challenge); nonce.CopyTo(body, 16); device.CopyTo(body, 24);

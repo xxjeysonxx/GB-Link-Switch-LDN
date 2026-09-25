@@ -7,7 +7,6 @@
     <meta name="description" content="Play Pokémon FireRed and LeafGreen on the Switch with a real Game Boy Advance, or trade with the Switch straight from your browser.">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237c8cff'/%3E%3Cpath d='M9 12h14M9 20h14M12 9l-3 3 3 3M20 17l3 3-3 3' stroke='%230b0d18' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
     <header class="masthead">
@@ -188,8 +187,7 @@
             </details>
         </section>
 
-        <div class="row-2" data-path="switch">
-        <section class="card" id="trade-card" aria-labelledby="trade-title">
+        <section class="card" id="trade-card" data-path="switch" aria-labelledby="trade-title">
             <div class="card-head">
                 <span class="step">2</span>
                 <div>
@@ -260,25 +258,6 @@
                 <p class="fine" id="party-fine" hidden>A Pokémon that arrives takes the slot of the one that left. Offer it again to trade it straight back.</p>
             </details>
         </section>
-
-        <section class="card" id="boxes-card" aria-labelledby="boxes-title">
-            <div class="card-head">
-                <div>
-                    <h2 id="boxes-title">Boxes</h2>
-                    <p class="sub">Read-only. Shows every Pokémon in a .sav file's boxes; nothing here is sent anywhere.</p>
-                </div>
-            </div>
-            <label class="drop" id="sav-drop">
-                <input type="file" id="sav-file" accept=".sav">
-                <strong>Drop your <code>.sav</code> here</strong>
-                <span>or click to choose the file</span>
-            </label>
-            <p class="status" id="boxes-status" aria-live="polite"></p>
-            <div class="switcher" id="box-tabs" role="tablist" aria-label="Box"></div>
-            <div class="slots" id="box-slots"></div>
-            <p class="fine" id="boxes-hint">Click a Pokémon to put it in your party's selected slot, or drag it onto any slot below.</p>
-        </section>
-        </div>
 
         <section class="card" id="log-card" aria-labelledby="log-title">
             <details>

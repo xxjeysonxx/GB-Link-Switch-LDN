@@ -61,7 +61,7 @@
    </Grid>
    <Grid Grid.Column="2" Background="#174C9D" RowDefinitions="54,*">
     <Border Background="#F7C842" Margin="8,0,8,0" CornerRadius="4">
-     <TextBlock Text="EMU" Foreground="#243A50" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+     <TextBlock Text="Soora" Foreground="#243A50" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
     </Border>
     <ItemsControl x:Name="LocalGrid" Grid.Row="1" ItemsSource="{Binding LocalParty.Slots}" ItemTemplate="{StaticResource PokemonTile}" Margin="1,8,1,1">
      <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="3" Columns="2"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>

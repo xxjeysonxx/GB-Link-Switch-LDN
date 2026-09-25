@@ -43,7 +43,7 @@ public static class SmokeTests
             int at = (y * size + x) * 4;
             pixels[at] = (byte)species; pixels[at + 1] = (byte)(species >> 8); pixels[at + 2] = 200; pixels[at + 3] = 255;
         }
-        using var bitmap = new WriteableBitmap(new PixelSize(size, size), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.Unpremul);
+        using var bitmap = new WriteableBitmap(new PixelSize(size, size), new Vector(96, 96), PixelFormat.Bgra8888, AlphaFormat.UnprSooral);
         using (var frame = bitmap.Lock()) Marshal.Copy(pixels, 0, frame.Address, pixels.Length);
         using var stream = new MemoryStream();
         bitmap.Save(stream, new PngBitmapEncoderOptions());

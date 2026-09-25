@@ -15,6 +15,8 @@ import { parse as parsePk3 } from './trade/pk3.js';
 import { spriteUrl, spriteFallbackUrl } from './trade/sprites.js';
 import { CancelledError, TradeSession } from './trade/session.js';
 import { POOL_SERVER, PoolClient } from './trade/pool.js';
+import { readBoxes } from './trade/sav.js';
+import { discordLog } from './discord-log.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -80,6 +82,10 @@ const state = {
     hiddenAt: 0,
     opponent: null,         // { name, party: [six or null] }
 
+    boxes: null,             // all 14 boxes read from a .sav, or null if none loaded
+    box: 0,                  // which box is on show
+    boxesNote: null,         // { text, tone } about the last .sav read
+
     resetLoop: false,       // the adapter reports the game resetting it over and over
     bridge: null,
     bridgeTimer: null,
@@ -112,7 +118,9 @@ function log(source, text) {
         logLines[logLines.length - 1] = `${stamp}  ${source.padEnd(7)} ${text}  (×${lastLogged.count})`;
     } else {
         lastLogged = { key, count: 1 };
-        logLines.push(`${stamp}  ${source.padEnd(7)} ${text}`);
+        const line = `${stamp}  ${source.padEnd(7)} ${text}`;
+        logLines.push(line);
+        discordLog(line);
         if (logLines.length > 600) logLines.splice(0, logLines.length - 600);
     }
     const view = $('log');
@@ -1054,7 +1062,7 @@ function poolServer() {
 }
 
 // tools: [act, glyph, what it does to this Pokémon] for the buttons beside each one.
-function drawSlots(id, mons, { pick = false, marked = -1, mark = 'chosen', tools = [], empty = '–' } = {}) {
+function drawSlots(id, mons, { pick = false, marked = -1, mark = 'chosen', tools = [], empty = '–', drag = false } = {}) {
     const box = $(id);
     box.replaceChildren();
     mons.forEach((pk, index) => {
@@ -1062,6 +1070,13 @@ function drawSlots(id, mons, { pick = false, marked = -1, mark = 'chosen', tools
         slot.className = `slot${pick ? '' : ' theirs'}${pk ? '' : ' empty'}`;
         slot.dataset.slot = String(index);
         if (index === marked) slot.classList.add(mark);
+        if (drag && pk) {
+            slot.draggable = true;
+            slot.addEventListener('dragstart', (event) => {
+                event.dataTransfer.setData('application/x-pk3-hex', toHex(pk.export()));
+                event.dataTransfer.effectAllowed = 'copy';
+            });
+        }
         const face = document.createElement(pick ? 'button' : 'div');
         face.className = 'slot-pick';
         if (pick) { face.type = 'button'; face.dataset.act = 'pick'; }
@@ -1140,7 +1155,7 @@ function renderTrade() {
         drawSlots('our-slots', state.party.slots, {
             pick: true, empty: 'Empty',
             marked: state.party.selected, mark: running && state.offered === state.party.selected ? 'offered' : 'chosen',
-            tools: [['save', '↓', 'Save % as a .pk3 file'], ['swap', '↑', 'Replace % from a .pk3 file', locked]],
+            tools: [['save', '↓', 'Save % as a .pk3 file'], ['swap', '↑', 'Replace % from a .pk3 file', locked], ['clear', '×', 'Remove %', locked]],
         });
     }
     $('party-note').hidden = $('party-board').hidden = $('party-fine').hidden = $('party-options').hidden = pool;
@@ -1172,6 +1187,60 @@ function renderTrade() {
     if (document.activeElement !== server) server.value = state.poolServer;
     server.disabled = running;
     $('pool-server-reset').hidden = running || state.poolServer === POOL_SERVER;
+}
+
+// ---------------------------------------------------------------- boxes, from a .sav
+
+async function onSavFile(file) {
+    if (!file) return;
+    try {
+        state.boxes = readBoxes(new Uint8Array(await file.arrayBuffer()));
+        state.box = 0;
+        state.boxesNote = null;
+    } catch (error) {
+        state.boxes = null;
+        state.boxesNote = { text: describe(error), tone: 'bad' };
+    }
+    renderBoxes();
+}
+
+function chooseBox(index) {
+    if (!state.boxes || index < 0 || index >= state.boxes.length) return;
+    state.box = index;
+    renderBoxes();
+}
+
+function renderBoxes() {
+    const tabs = $('box-tabs');
+    tabs.replaceChildren();
+    if (state.boxes) {
+        state.boxes.forEach((_, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.box = String(index);
+            button.setAttribute('aria-pressed', String(index === state.box));
+            button.textContent = String(index + 1);
+            tabs.append(button);
+        });
+    }
+    drawSlots('box-slots', state.boxes?.[state.box] ?? [], { pick: true, drag: true, empty: 'Empty' });
+    setLine('boxes-status', state.boxesNote?.text, state.boxesNote?.tone);
+}
+
+// Puts a box Pokémon straight into the party's currently selected slot: no picker,
+// no second click. Pick a different slot first by clicking a filled one in the party
+// grid below, or drag a box Pokémon onto any slot instead.
+function onBoxSlotClick(event) {
+    if (!event.target.closest('[data-act="pick"]')) return;
+    const slot = event.target.closest('.slot');
+    if (!slot || state.trade) return;
+    const pk = state.boxes?.[state.box]?.[Number(slot.dataset.slot)];
+    if (!pk) return;
+    const target = state.party.selected;
+    state.party.set(target, pk);
+    state.party.select(target);
+    state.partyNote = '';
+    renderTrade();
 }
 
 function chooseSource(source) {
@@ -1354,6 +1423,7 @@ function onSlotClick(event) {
     if (pooling()) return;
     if (button.dataset.act === 'save') { savePk3(state.party.slots[index]); return; }
     if (button.dataset.act === 'swap') { openPk3Picker(index); return; }
+    if (button.dataset.act === 'clear') { twice(button, 'Sure?', () => { state.party.set(index, null); renderTrade(); }); return; }
     if (!state.party.slots[index]) {
         if (!state.trade) openPk3Picker(index);
         return;
@@ -1454,6 +1524,7 @@ function render() {
     $('keys-erase').hidden = !state.keys || !Object.keys(KEY_NAMES).some((flag) => state.keys[flag]);
 
     renderTrade();
+    renderBoxes();
 
     const adapter = adapterView();
     adapterActions = drawCard('adapter', adapter);
@@ -1511,7 +1582,7 @@ function drawSteps() {
 // ---------------------------------------------------------------- start-up
 
 function wireUp() {
-    for (const id of ['esp-status', 'keys-status', 'adapter-status', 'adapter-file-status', 'bridge-status', 'wiring-status', 'trade-status']) $(id).dataset.base = 'status';
+    for (const id of ['esp-status', 'keys-status', 'adapter-status', 'adapter-file-status', 'bridge-status', 'wiring-status', 'trade-status', 'boxes-status']) $(id).dataset.base = 'status';
 
     $('esp-primary').addEventListener('click', () => espActions.primary?.());
     $('esp-secondary').addEventListener('click', () => espActions.secondary?.());
@@ -1587,8 +1658,31 @@ function wireUp() {
         if (!slot || state.trade || pooling()) return;
         event.preventDefault();
         slot.classList.remove('drop-target');
-        onPk3File(event.dataTransfer?.files?.[0], Number(slot.dataset.slot));
+        const index = Number(slot.dataset.slot);
+        const hex = event.dataTransfer?.getData('application/x-pk3-hex');
+        if (hex) {
+            try {
+                state.party.set(index, parsePk3(fromHex(hex)));
+                state.party.select(index);
+                state.partyNote = '';
+            } catch (error) {
+                state.partyNote = describe(error);
+            }
+            renderTrade();
+            return;
+        }
+        onPk3File(event.dataTransfer?.files?.[0], index);
     });
+
+    $('sav-file').addEventListener('change', (event) => {
+        onSavFile(event.target.files[0]);
+        event.target.value = '';
+    });
+    $('box-tabs').addEventListener('click', (event) => {
+        const box = event.target.closest('[data-box]');
+        if (box) chooseBox(Number(box.dataset.box));
+    });
+    $('box-slots').addEventListener('click', onBoxSlotClick);
 
     $('bridge-start').addEventListener('click', onBridgeStart);
     $('bridge-stop').addEventListener('click', () => stopBridge());
