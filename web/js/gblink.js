@@ -122,7 +122,7 @@ export class GbLinkSerial extends GbLinkBase {
         // See PORT_LOST_ADVICE in esp.js: the same thing happens to this port.
         await new Promise((resolve) => setTimeout(resolve, 150));
         if (this.readEnded) {
-            throw Object.assign(new Error('The browser lost the port the moment it opened it. On Linux this happens after another serial program has used the port: unplug the adapter and plug it back in, then connect again.'), { code: 'port-lost' });
+            throw Object.assign(new Error('El navegador perdió el puerto en cuanto lo abrió. En Linux pasa cuando otro programa serie ha usado el puerto: desenchufa el adaptador y vuelve a enchufarlo, y conecta de nuevo.'), { code: 'port-lost' });
         }
     }
 
@@ -150,7 +150,7 @@ export class GbLinkSerial extends GbLinkBase {
     }
 
     sendCommand(payload) {
-        if (!this.writer) return Promise.reject(new Error('Not connected'));
+        if (!this.writer) return Promise.reject(new Error('Sin conexión'));
         return this.writer.write(buildGbFrame(GB_CHANNEL.COMMAND, Uint8Array.from(payload)));
     }
 
@@ -192,7 +192,7 @@ export class GbLinkUsb extends GbLinkBase {
         if (!device.opened) await device.open();
         if (!device.configuration) await device.selectConfiguration(1);
         const found = findVendorInterface(device);
-        if (!found) throw new Error('This device has no GB-Link interface.');
+        if (!found) throw new Error('Este dispositivo no tiene interfaz GB-Link.');
         await device.claimInterface(found.interfaceNumber);
         this.device = device;
         this.endpoints = found;
@@ -234,7 +234,7 @@ export class GbLinkUsb extends GbLinkBase {
     transferOut(endpoint, payload) {
         const device = this.device;
         const result = this.outbound.then(() => {
-            if (!device || device !== this.device) throw new Error('Not connected');
+            if (!device || device !== this.device) throw new Error('Sin conexión');
             return device.transferOut(endpoint, payload);
         });
         this.outbound = result.catch(() => {});
@@ -242,7 +242,7 @@ export class GbLinkUsb extends GbLinkBase {
     }
 
     sendCommand(payload) {
-        if (!this.endpoints) return Promise.reject(new Error('Not connected'));
+        if (!this.endpoints) return Promise.reject(new Error('Sin conexión'));
         return this.transferOut(this.endpoints.commandOut, Uint8Array.from(payload));
     }
 

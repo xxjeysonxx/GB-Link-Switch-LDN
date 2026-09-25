@@ -43,7 +43,7 @@ export class Bridge extends EventTarget {
     // again each time the board comes back.
     async claim() {
         if (!this.running) return;
-        if (!(await this.esp.setAdapterPort('host'))) throw new Error('The ESP32 board did not hand over its adapter port.');
+        if (!(await this.esp.setAdapterPort('host'))) throw new Error('La placa ESP32 no cedió su puerto del adaptador.');
     }
 
     fail(error) {

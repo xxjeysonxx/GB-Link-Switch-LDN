@@ -29,8 +29,8 @@ export async function withSlowerRetry(rates, attempt, { onStatus = () => {}, onL
             return await attempt(rates[i], seen);
         } catch (error) {
             if (i === rates.length - 1 || !seen.faster) throw error;
-            onLog(`the board did not keep up at ${rates[i]} baud (${error.message}); trying again at ${rates[i + 1]}`);
-            onStatus('The board could not keep up at high speed. Trying again slower…');
+            onLog(`la placa no aguantó a ${rates[i]} baudios (${error.message}); reintentando a ${rates[i + 1]}`);
+            onStatus('La placa no aguantó la velocidad alta. Reintentando más despacio…');
         }
     }
     return undefined;
@@ -49,20 +49,20 @@ async function flashAt(port, manifest, baudrate, seen, { onStatus = () => {}, on
     const transport = new Transport(port, false);
     const loader = new ESPLoader({ transport, baudrate, romBaudrate: 115200, terminal, debugLogging: false });
     try {
-        onStatus('Connecting to the chip…');
+        onStatus('Conectando con el chip…');
         await loader.main();
         const chip = loader.chip.CHIP_NAME;
         const entry = manifest.bridge.chips[chip];
-        if (!entry) throw new Error(`There is no bridge firmware for the ${chip}.`);
+        if (!entry) throw new Error(`No hay firmware de puente para el ${chip}.`);
 
-        onStatus(`Found an ${chip}. Downloading firmware ${manifest.bridge.version}…`);
+        onStatus(`Encontrado un ${chip}. Descargando el firmware ${manifest.bridge.version}…`);
         const files = [];
         for (const part of entry.parts) files.push({ address: part.address, data: await fetchBytes(manifest.base + part.path) });
 
         const sizes = files.map((file) => file.data.length);
         const total = sizes.reduce((sum, size) => sum + size, 0);
         const flashSize = await loader.detectFlashSize();
-        onStatus(eraseAll ? 'Erasing the whole flash, then writing…' : 'Writing… do not unplug the board.');
+        onStatus(eraseAll ? 'Borrando toda la flash y escribiendo…' : 'Escribiendo… no desenchufes la placa.');
         await loader.writeFlash({
             fileArray: files,
             flashSize,
@@ -76,7 +76,7 @@ async function flashAt(port, manifest, baudrate, seen, { onStatus = () => {}, on
                 onProgress((before + sizes[index] * (length ? written / length : 1)) / total);
             },
         });
-        onStatus('Written and verified. Restarting the board…');
+        onStatus('Escrito y verificado. Reiniciando la placa…');
         await hardReset(transport);
         return { chip, version: manifest.bridge.version };
     } finally {

@@ -16,6 +16,7 @@ import { spriteUrl, spriteFallbackUrl } from './trade/sprites.js';
 import { CancelledError, TradeSession } from './trade/session.js';
 import { POOL_SERVER, PoolClient } from './trade/pool.js';
 import { readBoxes } from './trade/sav.js';
+import * as Pk3Folder from './pk3-folder.js';
 import { discordLog } from './discord-log.js';
 
 const $ = (id) => document.getElementById(id);
@@ -36,7 +37,7 @@ const POLL_MS = 5000;
 
 const state = {
     manifest: null,
-    path: 'gba',            // which tree is on show: gba | switch
+    path: 'switch',         // which tree is on show: gba | switch
 
     esp: null,
     espPort: null,          // a port that was picked but would not attach
@@ -63,12 +64,14 @@ const state = {
     customUf2: null,
     uf2Note: null,
 
-    source: 'pool',         // what the trade card offers: pool | party
+    source: 'party',        // what the trade card offers: pool | party (only party now)
     poolServer: POOL_SERVER,
     poolMon: null,          // what the pool is offering, while connected
     menuOpen: false,
     trading: false,         // both sides have confirmed, and the trade is under way
     kept: [],               // what the Switch gave in swaps the pool did not confirm
+    folder: null,           // { name, ready } for the folder traded Pokémon are written to
+    folderNote: '',         // what to say about the last save, or the folder itself
     party: new Party(),
     partyNote: '',
     pickerSlot: 0,
@@ -138,7 +141,7 @@ async function choose(request) {
     try {
         return await request();
     } catch (error) {
-        if (error?.name !== 'NotFoundError') log('page', `the browser would not show its device list: ${describe(error)}`);
+        if (error?.name !== 'NotFoundError') log('page', `el navegador no mostró su lista de dispositivos: ${describe(error)}`);
         return null;
     }
 }
@@ -148,81 +151,81 @@ async function choose(request) {
 const ESP_PROBLEMS = {
     'no-firmware': () => ({
         tone: 'warn',
-        text: 'This board doesn’t have the bridge firmware yet.',
-        primary: ['Install firmware', () => onEspInstall()],
-        secondary: ['Pick another port', onEspPickAnother],
+        text: 'Esta placa todavía no tiene el firmware de puente.',
+        primary: ['Instalar el firmware', () => onEspInstall()],
+        secondary: ['Elegir otro puerto', onEspPickAnother],
     }),
     'download-mode': () => ({
         tone: 'warn',
-        text: 'The board is in its bootloader, ready for firmware.',
-        hint: 'If it already has the firmware, press its reset (EN) button instead and connect again.',
-        primary: ['Install firmware', () => onEspInstall()],
-        secondary: ['Connect again', onEspConnect],
+        text: 'La placa está en su bootloader, lista para el firmware.',
+        hint: 'Si ya tiene el firmware, pulsa su botón de reinicio (EN) y vuelve a conectar.',
+        primary: ['Instalar el firmware', () => onEspInstall()],
+        secondary: ['Conectar de nuevo', onEspConnect],
     }),
     'crash-loop': (problem) => ({
         tone: 'bad',
-        text: 'The firmware on this board crashes as it starts.',
-        hint: problem.hint ? `${problem.hint} (also in the log below)` : 'Installing it again usually fixes that.',
-        primary: ['Install firmware again', () => onEspInstall()],
+        text: 'El firmware de esta placa falla al arrancar.',
+        hint: problem.hint ? `${problem.hint} (también en el registro de abajo)` : 'Instalarlo de nuevo suele arreglarlo.',
+        primary: ['Instalar el firmware de nuevo', () => onEspInstall()],
     }),
     'port-busy': () => ({
         tone: 'bad',
-        text: 'Another program has this port open.',
-        hint: 'Close any serial monitor or flashing tool, then try again.',
-        primary: ['Try again', onEspConnect],
-        secondary: ['Pick another port', onEspPickAnother],
+        text: 'Otro programa tiene este puerto abierto.',
+        hint: 'Cierra cualquier monitor serie o herramienta de flasheo y vuelve a intentarlo.',
+        primary: ['Reintentar', onEspConnect],
+        secondary: ['Elegir otro puerto', onEspPickAnother],
     }),
     'port-lost': () => ({
         tone: 'bad',
-        text: 'The browser lost the port as it opened it.',
-        hint: 'Unplug the board and plug it back in, then connect again. On Linux this happens after another serial program has used the port.',
-        primary: ['Connect', onEspConnect],
+        text: 'El navegador perdió el puerto al abrirlo.',
+        hint: 'Desenchufa la placa y vuelve a enchufarla, y conecta de nuevo. En Linux pasa cuando otro programa serie ha usado el puerto.',
+        primary: ['Conectar', onEspConnect],
     }),
     'install-failed': (problem) => ({
         tone: 'bad',
         text: problem.text,
         hint: problem.hint,
-        primary: ['Try again', () => onEspInstall()],
-        secondary: ['Pick another port', onEspPickAnother],
+        primary: ['Reintentar', () => onEspInstall()],
+        secondary: ['Elegir otro puerto', onEspPickAnother],
     }),
     'silent-after-install': () => ({
         tone: 'warn',
-        text: 'Installed, but the board hasn’t answered yet.',
-        hint: 'Press its reset button, or unplug it and plug it back in, then connect.',
-        primary: ['Connect', onEspConnect],
+        text: 'Instalado, pero la placa todavía no responde.',
+        hint: 'Pulsa su botón de reinicio, o desenchúfala y vuelve a enchufarla, y conecta.',
+        primary: ['Conectar', onEspConnect],
     }),
-    gone: (problem) => ({ tone: problem.tone ?? '', text: problem.text, primary: ['Connect', onEspConnect] }),
+    gone: (problem) => ({ tone: problem.tone ?? '', text: problem.text, primary: ['Conectar', onEspConnect] }),
 };
 
 function espView() {
     if (state.espPhase === 'choosing') {
         return {
             busy: true,
-            text: 'Pick the board in the list the browser is showing.',
-            hint: 'It is listed as “USB JTAG/serial debug unit”, or as “CP2102” or “CH340” on boards with a separate USB chip.',
+            text: 'Elige la placa en la lista que muestra el navegador.',
+            hint: 'Aparece como “USB JTAG/serial debug unit”, o como “CP2102” o “CH340” en placas con un chip USB aparte.',
         };
     }
-    if (state.espPhase === 'connecting') return { busy: true, text: 'Looking for the bridge firmware…' };
+    if (state.espPhase === 'connecting') return { busy: true, text: 'Buscando el firmware de puente…' };
     if (state.espPhase === 'installing') return { busy: true, text: state.espNote, progress: state.espProgress };
-    if (state.espPhase === 'starting') return { busy: true, text: 'Installed. Waiting for the board to start…' };
+    if (state.espPhase === 'starting') return { busy: true, text: 'Instalado. Esperando a que arranque la placa…' };
 
     const esp = state.esp;
     if (state.espProblem) {
         const view = (ESP_PROBLEMS[state.espProblem.code] ?? ESP_PROBLEMS.gone)(state.espProblem);
         return { ...view, connected: Boolean(esp) };
     }
-    if (!esp) return { text: 'Plug the board into this computer with a USB data cable.', primary: ['Connect', onEspConnect] };
+    if (!esp) return { text: 'Conecta la placa a este ordenador con un cable USB de datos.', primary: ['Conectar', onEspConnect] };
     const name = CHIP_NAMES[esp.info?.chip] ?? esp.info?.chip ?? 'board';
     if (!esp.attached) {
-        return { busy: true, connected: true, done: Boolean(state.keys?.complete), text: `${name} · restarting, as it does after every session…` };
+        return { busy: true, connected: true, done: Boolean(state.keys?.complete), text: `${name} · reiniciándose, como hace tras cada sesión…` };
     }
     const bundled = state.manifest?.bridge.version;
     if (!esp.info || (bundled && newer(bundled, esp.info.version))) {
         return {
             connected: true,
             tone: 'warn',
-            text: esp.info ? `Firmware ${esp.info.version} is installed; ${bundled} is available.` : 'This board’s firmware is older than this page expects.',
-            primary: ['Update firmware', () => onEspInstall()],
+            text: esp.info ? `El firmware ${esp.info.version} está instalado; hay ${bundled} disponible.` : 'El firmware de esta placa es más antiguo de lo que espera esta página.',
+            primary: ['Actualizar el firmware', () => onEspInstall()],
         };
     }
     if (!state.keys?.complete || state.replacingKeys) {
@@ -230,11 +233,11 @@ function espView() {
             connected: true,
             tone: state.keys?.complete ? '' : 'warn',
             dot: state.keys?.complete ? 'good' : 'warn',
-            text: state.keys?.complete ? `${name} connected. Drop a prod.keys to replace the stored keys.` : `${name} connected. It still needs your console’s keys.`,
+            text: state.keys?.complete ? `${name} conectada. Suelta un prod.keys para reemplazar las claves guardadas.` : `${name} conectada. Todavía necesita las claves de tu consola.`,
             keys: true,
         };
     }
-    return { connected: true, done: true, tone: 'good', text: `${name} · firmware ${esp.info.version} · keys stored` };
+    return { connected: true, done: true, tone: 'good', text: `${name} · firmware ${esp.info.version} · claves guardadas` };
 }
 
 // ---------------------------------------------------------------- ESP32 board: doing things
@@ -293,7 +296,7 @@ async function attachEsp(port) {
         await device.close();
         state.espPort = error.code === 'port-lost' ? null : port;
         state.espProblem = { code: error.code ?? 'no-firmware', text: describe(error), hint: error.detail };
-        if (error.code === 'crash-loop') log('board', `crashing at start-up: ${error.detail || 'no detail captured'}`);
+        if (error.code === 'crash-loop') log('board', `falla al arrancar: ${error.detail || 'sin detalles'}`);
         state.espPhase = 'idle';
         render();
         return;
@@ -316,8 +319,8 @@ async function adoptEsp(device) {
         render();
     });
     device.addEventListener('reattached', () => { if (state.esp === device) refreshEsp(); });
-    device.addEventListener('failed', (event) => { if (state.esp === device) dropEsp({ code: 'gone', tone: 'bad', text: `The board stopped answering (${describe(event.detail)}).` }); });
-    device.addEventListener('disconnected', () => { if (state.esp === device) dropEsp({ code: 'gone', tone: 'warn', text: 'The board was unplugged.' }); });
+    device.addEventListener('failed', (event) => { if (state.esp === device) dropEsp({ code: 'gone', tone: 'bad', text: `La placa dejó de responder (${describe(event.detail)}).` }); });
+    device.addEventListener('disconnected', () => { if (state.esp === device) dropEsp({ code: 'gone', tone: 'warn', text: 'Han desenchufado la placa.' }); });
     await refreshEsp();
     clearInterval(state.pollTimer);
     state.pollTimer = setInterval(pollSession, POLL_MS);
@@ -328,8 +331,8 @@ async function refreshEsp() {
     if (!esp) return;
     const info = esp.info;
     const bundled = state.manifest?.bridge.version;
-    $('esp-chip').textContent = CHIP_NAMES[info?.chip] ?? info?.chip ?? 'Unknown';
-    $('esp-version').textContent = !info ? 'Older than 2.0' : bundled && newer(bundled, info.version) ? `${info.version} (${bundled} available)` : info.version;
+    $('esp-chip').textContent = CHIP_NAMES[info?.chip] ?? info?.chip ?? 'Desconocido';
+    $('esp-version').textContent = !info ? 'Anterior a 2.0' : bundled && newer(bundled, info.version) ? `${info.version} (hay ${bundled})` : info.version;
     $('esp-transport').textContent = info ? (info.transport === 'UART' ? `UART, ${esp.baudRate} baud` : info.transport) : '–';
     try {
         // Left over from a page that was closed while it carried the link.
@@ -344,7 +347,7 @@ async function refreshEsp() {
 
 async function dropEsp(problem = null) {
     const device = state.esp;
-    if (state.bridge) await stopBridge('The ESP32 board went away.');
+    if (state.bridge) await stopBridge('La placa ESP32 ha desaparecido.');
     clearInterval(state.pollTimer);
     state.esp = null;
     state.keys = null;
@@ -379,7 +382,7 @@ function pollSoon() {
 async function onEspInstall(eraseAll = false) {
     if (state.espPhase !== 'idle') return;
     if (!state.manifest) {
-        state.espProblem = { code: 'install-failed', text: 'The firmware bundled with this page could not be loaded.' };
+        state.espProblem = { code: 'install-failed', text: 'No se pudo cargar el firmware incluido con esta página.' };
         render();
         return;
     }
@@ -393,7 +396,7 @@ async function onEspInstall(eraseAll = false) {
     }
     $('esp-more').open = false;
     state.espPhase = 'installing';
-    state.espNote = 'Preparing…';
+    state.espNote = 'Preparando…';
     state.espProgress = 0;
     render();
     try {
@@ -406,7 +409,7 @@ async function onEspInstall(eraseAll = false) {
             onProgress: (fraction) => { state.espProgress = fraction; setProgress('esp-progress', fraction); },
             onLog: (text) => log('flasher', text),
         });
-        log('page', `firmware ${done.version} installed on the ${done.chip}`);
+        log('page', `firmware ${done.version} instalado en el ${done.chip}`);
         state.espPhase = 'starting';
         state.espProgress = null;
         render();
@@ -432,13 +435,13 @@ async function onEspInstall(eraseAll = false) {
 function installAdvice(error) {
     const text = describe(error);
     if (/device has been lost/i.test(text)) {
-        return { text: 'The browser lost the port as it opened it.', hint: 'Unplug the board and plug it back in, then try again.' };
+        return { text: 'El navegador perdió el puerto al abrirlo.', hint: 'Desenchufa la placa y vuelve a enchufarla, y reinténtalo.' };
     }
     if (/failed to connect|timed? ?out|no serial data|invalid head/i.test(text)) {
-        return { text: 'The chip did not enter its bootloader.', hint: 'Hold the BOOT button, press and release RESET (or plug the board in with BOOT held), then try again.' };
+        return { text: 'El chip no entró en su bootloader.', hint: 'Mantén pulsado BOOT, pulsa y suelta RESET (o enchufa la placa con BOOT pulsado) y reinténtalo.' };
     }
-    if (/failed to open|already open/i.test(text)) return { text: 'Another program has this port open.', hint: 'Close it, then try again.' };
-    return { text: 'Installing failed.', hint: text };
+    if (/failed to open|already open/i.test(text)) return { text: 'Otro programa tiene este puerto abierto.', hint: 'Ciérralo y reinténtalo.' };
+    return { text: 'La instalación falló.', hint: text };
 }
 
 // Two clicks rather than a dialog: the first arms the button for a few seconds.
@@ -474,29 +477,29 @@ async function onKeysFile(file) {
     const esp = state.esp;
     if (!file || !esp?.attached) return;
     const note = (text, tone) => { state.keysNote = { text, tone }; render(); };
-    if (file.size > 1024 * 1024) { note('That file is too large to be a prod.keys.', 'bad'); return; }
+    if (file.size > 1024 * 1024) { note('Ese archivo es demasiado grande para ser un prod.keys.', 'bad'); return; }
     const parsed = parseProdKeys(await file.text());
     if (parsed.missing.length || parsed.malformed.length) {
         const problems = [];
-        if (parsed.missing.length) problems.push(`not in the file: ${parsed.missing.join(', ')}`);
-        if (parsed.malformed.length) problems.push(`not 32 hex digits: ${parsed.malformed.join(', ')}`);
-        note(`That file cannot be used (${problems.join('; ')}).`, 'bad');
+        if (parsed.missing.length) problems.push(`no están en el archivo: ${parsed.missing.join(', ')}`);
+        if (parsed.malformed.length) problems.push(`no son 32 dígitos hex: ${parsed.malformed.join(', ')}`);
+        note(`Ese archivo no sirve (${problems.join('; ')}).`, 'bad');
         return;
     }
-    note('Storing the keys on the board…');
+    note('Guardando las claves en la placa…');
     try {
         const rejected = await esp.storeKeys(parsed.keys);
-        if (rejected.length) { note(`The board did not accept: ${rejected.join(', ')}.`, 'bad'); return; }
+        if (rejected.length) { note(`La placa no aceptó: ${rejected.join(', ')}.`, 'bad'); return; }
         state.replacingKeys = false;
         state.keysNote = null;
         await refreshKeys();
         if (state.keys?.complete) {
             await esp.startBridge();
-            log('page', 'keys stored; the board is looking for a room');
+            log('page', 'claves guardadas; la placa busca una sala');
             pollSoon();
         }
     } catch (error) {
-        note(`The keys could not be stored (${describe(error)}).`, 'bad');
+        note(`No se pudieron guardar las claves (${describe(error)}).`, 'bad');
     }
 }
 
@@ -505,7 +508,7 @@ async function onKeysErase() {
     if (!esp?.attached) return;
     try {
         await esp.eraseKeys();
-        log('page', 'keys erased from the board');
+        log('page', 'claves borradas de la placa');
         await refreshKeys();
     } catch (error) {
         state.keysNote = { text: describe(error), tone: 'bad' };
@@ -518,7 +521,7 @@ function keysLine() {
     const keys = state.keys;
     if (!keys || keys.complete) return { text: '' };
     const missing = Object.entries(KEY_NAMES).filter(([flag]) => !keys[flag]).map(([, name]) => name);
-    return missing.length && missing.length < 4 ? { text: `Still missing: ${missing.join(', ')}.`, tone: 'warn' } : { text: '' };
+    return missing.length && missing.length < 4 ? { text: `Todavía faltan: ${missing.join(', ')}.`, tone: 'warn' } : { text: '' };
 }
 
 // ---------------------------------------------------------------- session status
@@ -544,52 +547,53 @@ function roomWord(esp, status, signal) {
     if (status && status.state === 'run') return `joined${dbm}`;
     if (status && status.state !== 'scan' && status.state !== 'stopped' && status.state !== 'idle') return `joining${dbm}`;
     const now = Date.now();
-    if (now - esp.readAt < 10000) return `heard and read${dbm}`;
-    if (now - esp.heardAt < 5000) return `heard, but the keys cannot read it${dbm}`;
-    return 'not heard';
+    if (now - esp.readAt < 10000) return `oída y leída${dbm}`;
+    if (now - esp.heardAt < 5000) return `oída, pero las claves no la leen${dbm}`;
+    return 'no se oye';
 }
 
 function renderSession() {
+    if (!gbaTree()) return;   // the play card is not on this page
     const status = state.session;
     const box = $('session');
     box.hidden = !state.esp;
     if (!state.esp) { $('play-dot').className = 'dot'; return; }
-    let headline = 'Waiting for the board…';
+    let headline = 'Esperando a la placa…';
     let hint = '';
     let tone = '';
     if (state.resetLoop && state.adapter) {
-        headline = 'The game keeps restarting the wireless adapter.';
-        hint = 'On the GBA this looks like a freeze. It is usually the link cable: it must be a Game Boy Color cable, not a Game Boy Advance one, and the adapter needs the firmware from step 2.';
+        headline = 'El juego reinicia el adaptador inalámbrico sin parar.';
+        hint = 'En la GBA esto parece un cuelgue. Normalmente es el cable de enlace: tiene que ser uno de Game Boy Color, no de Game Boy Advance, y el adaptador necesita el firmware del paso 2.';
         tone = 'warn';
     } else if (state.keys && !state.keys.complete) {
-        headline = 'The board needs its keys.';
-        hint = 'Without them it cannot read the Switch\'s wireless. Add your prod.keys in step 1.';
+        headline = 'La placa necesita sus claves.';
+        hint = 'Sin ellas no puede leer la red inalámbrica de la Switch. Añade tu prod.keys en el paso 1.';
         tone = 'warn';
     } else if (status) {
         const running = status.state === 'run';
         if (status.state === 'stopped' || status.state === 'idle') {
-            headline = 'The bridge is stopped.';
-            hint = 'Unplug the board and plug it back in.';
+            headline = 'El puente está detenido.';
+            hint = 'Desenchufa la placa y vuelve a enchufarla.';
             tone = 'warn';
         } else if (status.state === 'scan' && state.esp.hearsUnreadableRoom) {
-            headline = 'The board hears a Switch’s room but cannot read it.';
-            hint = 'The keys it holds do not match. Replace the keys in step 1 with a prod.keys from your own Switch.';
+            headline = 'La placa oye una sala de la Switch pero no puede leerla.';
+            hint = 'Las claves que tiene no coinciden. Reemplázalas en el paso 1 con un prod.keys de tu propia Switch.';
             tone = 'warn';
         } else if (status.state === 'scan') {
-            headline = 'Looking for a FireRed or LeafGreen room…';
-            hint = 'On the Switch, open the Trade Center or Colosseum as the group leader.';
+            headline = 'Buscando una sala de Rojo Fuego o Verde Hoja…';
+            hint = 'En la Switch, abre el Centro de Intercambio o el Coliseo como líder del grupo.';
         } else if (!running) {
-            headline = 'Joining the Switch’s room…';
+            headline = 'Uniéndose a la sala de la Switch…';
         } else if (status.child === '1') {
-            headline = 'The Game Boy Advance and the Switch are linked.';
-            hint = 'Leave the room on both consoles when you are done; the board then gets ready for the next one.';
+            headline = 'La Game Boy Advance y la Switch están enlazadas.';
+            hint = 'Salid de la sala en las dos consolas al terminar; la placa se prepara entonces para la siguiente.';
             tone = 'good';
         } else if (status.conn_state === '2') {
-            headline = 'In the Switch’s room. Waiting for the Game Boy Advance.';
-            hint = 'On the GBA, choose the same activity and join the group.';
+            headline = 'En la sala de la Switch. Esperando a la Game Boy Advance.';
+            hint = 'En la GBA, elige la misma actividad y únete al grupo.';
             tone = 'good';
         } else {
-            headline = 'In the Switch’s room, setting up the session…';
+            headline = 'En la sala de la Switch, preparando la sesión…';
         }
     }
     $('session-headline').textContent = headline;
@@ -603,42 +607,42 @@ function renderSession() {
 const ADAPTER_PROBLEMS = {
     denied: () => ({
         tone: 'bad',
-        text: 'The browser was refused access to the adapter.',
-        hint: 'Close other pages or programs that use it. On Linux it also needs a udev rule; connecting over serial, under More options, works without one.',
-        primary: ['Try again', () => onAdapterConnect()],
+        text: 'El navegador no obtuvo acceso al adaptador.',
+        hint: 'Cierra otras páginas o programas que lo usen. En Linux además necesita una regla udev; conectando por serie, en Más opciones, funciona sin ella.',
+        primary: ['Reintentar', () => onAdapterConnect()],
     }),
     'port-lost': () => ({
         tone: 'bad',
-        text: 'The browser lost the port as it opened it.',
-        hint: 'Unplug the adapter and plug it back in, then connect again.',
-        primary: ['Connect', () => onAdapterConnect()],
+        text: 'El navegador perdió el puerto al abrirlo.',
+        hint: 'Desenchufa el adaptador y vuelve a enchufarlo, y conecta de nuevo.',
+        primary: ['Conectar', () => onAdapterConnect()],
     }),
     'install-failed': (problem) => ({
         tone: 'bad',
-        text: 'Installing failed.',
+        text: 'La instalación falló.',
         hint: problem.hint,
-        primary: ['Try again', onAdapterInstall],
+        primary: ['Reintentar', onAdapterInstall],
     }),
     'no-webusb': () => ({
         tone: 'warn',
-        text: 'This browser cannot reach the adapter’s bootloader.',
-        hint: 'Use Chrome or Edge, or install by hand as described under More options.',
+        text: 'Este navegador no puede llegar al bootloader del adaptador.',
+        hint: 'Usa Chrome o Edge, o instálalo a mano como se explica en Más opciones.',
     }),
     cancelled: () => ({
         text: 'Cancelled.',
-        hint: 'If the adapter is still in update mode, unplug it and plug it back in to use it as it was.',
-        primary: ['Connect', () => onAdapterConnect()],
+        hint: 'Si el adaptador sigue en modo de actualización, desenchúfalo y vuelve a enchufarlo para usarlo como antes.',
+        primary: ['Conectar', () => onAdapterConnect()],
     }),
-    gone: (problem) => ({ tone: problem.tone ?? '', text: problem.text, hint: problem.hint, primary: ['Connect', () => onAdapterConnect()] }),
+    gone: (problem) => ({ tone: problem.tone ?? '', text: problem.text, hint: problem.hint, primary: ['Conectar', () => onAdapterConnect()] }),
 };
 
 function adapterView() {
     if (state.install) {
         const waiting = state.install.step === 'restart' || state.install.step === 'choose';
-        return { busy: true, steps: true, text: 'Installing the firmware…', secondary: waiting ? ['Cancel', cancelAdapterInstall] : null };
+        return { busy: true, steps: true, text: 'Instalando el firmware…', secondary: waiting ? ['Cancelar', cancelAdapterInstall] : null };
     }
     if (state.adapterPhase === 'choosing') {
-        return { busy: true, text: 'Pick the adapter in the list the browser is showing.', hint: 'It is listed as “GBLink USB”.' };
+        return { busy: true, text: 'Elige el adaptador en la lista que muestra el navegador.', hint: 'Aparece como “GBLink USB”.' };
     }
     if (state.adapterPhase === 'connecting') return { busy: true, text: 'Connecting…' };
 
@@ -648,25 +652,25 @@ function adapterView() {
         return { ...view, connected: Boolean(adapter) };
     }
     if (state.bootDevice) {
-        return { tone: 'warn', text: 'The adapter is in update mode, ready for firmware.', primary: [installLabel(), onAdapterInstall] };
+        return { tone: 'warn', text: 'El adaptador está en modo de actualización, listo para el firmware.', primary: [installLabel(), onAdapterInstall] };
     }
-    if (!adapter) return { text: 'Plug the adapter into this computer.', primary: ['Connect', () => onAdapterConnect()] };
+    if (!adapter) return { text: 'Conecta el adaptador a este ordenador.', primary: ['Conectar', () => onAdapterConnect()] };
     const info = state.adapterInfo;
     const bundled = state.manifest?.adapter.version;
     if (!info?.wireless) {
-        return { connected: true, tone: 'warn', text: 'This adapter’s firmware doesn’t have the wireless adapter mode yet.', primary: [installLabel(), onAdapterInstall] };
+        return { connected: true, tone: 'warn', text: 'El firmware de este adaptador todavía no tiene el modo adaptador inalámbrico.', primary: [installLabel(), onAdapterInstall] };
     }
     if (bundled && info.version && newer(bundled, info.version)) {
-        return { connected: true, tone: 'warn', text: `Firmware ${info.version} is installed; ${bundled} is available.`, primary: ['Update firmware', onAdapterInstall] };
+        return { connected: true, tone: 'warn', text: `El firmware ${info.version} está instalado; hay ${bundled} disponible.`, primary: ['Actualizar el firmware', onAdapterInstall] };
     }
     if (state.customUf2) {
-        return { connected: true, text: `${state.customUf2.name} is ready to install.`, primary: [installLabel(), onAdapterInstall] };
+        return { connected: true, text: `${state.customUf2.name} está listo para instalar.`, primary: [installLabel(), onAdapterInstall] };
     }
-    return { connected: true, done: true, tone: 'good', text: `GB-Link · firmware ${info.version ?? 'unknown'} · wireless adapter mode` };
+    return { connected: true, done: true, tone: 'good', text: `GB-Link · firmware ${info.version ?? 'desconocido'} · modo adaptador inalámbrico` };
 }
 
 function installLabel() {
-    return state.customUf2 ? `Install ${state.customUf2.name}` : 'Install firmware';
+    return state.customUf2 ? `Instalar ${state.customUf2.name}` : 'Instalar el firmware';
 }
 
 // ---------------------------------------------------------------- adapter: doing things
@@ -718,10 +722,10 @@ async function openAdapter(adapter, handle) {
         state.adapterInfo = info;
         state.askForAdapter = false;
         state.adapterProblem = null;
-        adapter.addEventListener('disconnected', () => { if (state.adapter === adapter) dropAdapter({ code: 'gone', tone: 'warn', text: 'The adapter was unplugged.' }); });
+        adapter.addEventListener('disconnected', () => { if (state.adapter === adapter) dropAdapter({ code: 'gone', tone: 'warn', text: 'Han desenchufado el adaptador.' }); });
         adapter.addEventListener('resetloop', (event) => { if (state.adapter === adapter) onResetLoop(event.detail); });
-        $('adapter-version').textContent = info.version ?? 'Unknown';
-        $('adapter-wireless').textContent = info.wireless ? 'Yes' : 'No';
+        $('adapter-version').textContent = info.version ?? 'Desconocido';
+        $('adapter-wireless').textContent = info.wireless ? 'Sí' : 'No';
         $('adapter-kind').textContent = adapter.kind === 'usb' ? 'WebUSB' : 'Serial';
     } catch (error) {
         await adapter.close();
@@ -729,7 +733,7 @@ async function openAdapter(adapter, handle) {
         const denied = error?.name === 'SecurityError' || /access denied/i.test(describe(error));
         state.adapterProblem = denied ? { code: 'denied' }
             : error.code === 'port-lost' ? { code: 'port-lost' }
-            : { code: 'gone', tone: 'bad', text: 'The adapter could not be opened.', hint: describe(error) };
+            : { code: 'gone', tone: 'bad', text: 'No se pudo abrir el adaptador.', hint: describe(error) };
     } finally {
         state.adapterPhase = 'idle';
         render();
@@ -740,13 +744,13 @@ async function openAdapter(adapter, handle) {
 // looking, because from the GBA's side it is a freeze with no message.
 function onResetLoop({ looping, startedUp }) {
     state.resetLoop = looping;
-    if (looping) log('adapter', `the game keeps restarting the wireless adapter (${startedUp ? 'its commands are not getting through' : 'the adapter is not being recognised'})`);
+    if (looping) log('adapter', `el juego reinicia el adaptador inalámbrico sin parar (${startedUp ? 'sus órdenes no llegan' : 'no se reconoce el adaptador'})`);
     renderSession();
 }
 
 async function dropAdapter(problem = null) {
     const adapter = state.adapter;
-    if (state.bridge) await stopBridge('The adapter went away.');
+    if (state.bridge) await stopBridge('El adaptador ha desaparecido.');
     state.adapter = null;
     state.adapterInfo = null;
     state.bootDevice = null;
@@ -777,7 +781,7 @@ async function onAdapterInstall() {
     $('adapter-more').open = false;
     let image;
     try {
-        if (!state.manifest && !state.customUf2) throw new Error('the firmware bundled with this page could not be loaded');
+        if (!state.manifest && !state.customUf2) throw new Error('no se pudo cargar el firmware incluido con esta página');
         image = await adapterImage();
     } catch (error) {
         state.adapterProblem = { code: 'install-failed', hint: describe(error) };
@@ -802,7 +806,7 @@ async function onAdapterInstall() {
         await adapter.rebootToBootloader();
         await sleep(200);
     } catch (error) {
-        log('page', `the adapter would not restart: ${describe(error)}`);
+        log('page', `el adaptador no se reinició: ${describe(error)}`);
         install.manual = true;
     }
     await adapter.close();
@@ -855,7 +859,7 @@ async function flashBootloader(picoboot) {
             onStatus: (text) => log('flasher', text),
             onProgress: (fraction) => setProgress('adapter-progress', fraction),
         });
-        log('page', `adapter firmware installed: ${state.customUf2?.name ?? `bundled ${state.manifest?.adapter.version ?? ''}`.trim()}`);
+        log('page', `firmware del adaptador instalado: ${state.customUf2?.name ?? `incluido ${state.manifest?.adapter.version ?? ''}`.trim()}`);
         state.bootDevice = null;
         state.customUf2 = null;
         $('adapter-file').value = '';
@@ -863,7 +867,7 @@ async function flashBootloader(picoboot) {
         render();
         await reconnectAdapter();
     } catch (error) {
-        log('page', `adapter install failed: ${describe(error)}`);
+        log('page', `la instalación del adaptador falló: ${describe(error)}`);
         state.install = null;
         state.adapterProblem = { code: 'install-failed', hint: describe(error) };
         render();
@@ -889,7 +893,7 @@ async function reconnectAdapter() {
         }
     }
     state.install = null;
-    state.adapterProblem = { code: 'gone', tone: 'good', text: 'Installed. Connect the adapter to carry on.' };
+    state.adapterProblem = { code: 'gone', tone: 'good', text: 'Instalado. Conecta el adaptador para continuar.' };
     render();
 }
 
@@ -904,7 +908,7 @@ async function onAdapterFile(file) {
     } catch (error) {
         state.customUf2 = null;
         $('adapter-file').value = '';
-        state.uf2Note = `That is not a usable .uf2 file (${describe(error)}).`;
+        state.uf2Note = `Ese no es un archivo .uf2 utilizable (${describe(error)}).`;
     }
     render();
 }
@@ -912,21 +916,21 @@ async function onAdapterFile(file) {
 // ---------------------------------------------------------------- play
 
 function bridgeBlocker() {
-    if (state.trade) return 'This page is trading with the Switch itself. Disconnect there first.';
-    if (!state.esp?.attached) return 'Connect the ESP32 board in step 1.';
-    if (!state.adapter) return 'Connect the adapter in step 2.';
-    if (state.esp.info?.transport === 'UART' && state.esp.baudRate < FAST_BAUD) return 'This board’s firmware runs its console at 115200 baud, which cannot carry the link. Update it in step 1.';
-    if (!state.adapterInfo?.wireless) return 'The adapter needs the firmware from step 2.';
-    if (!state.keys?.complete) return 'The board needs its keys from step 1.';
+    if (state.trade) return 'Esta página está intercambiando con la propia Switch. Desconecta allí primero.';
+    if (!state.esp?.attached) return 'Conecta la placa ESP32 del paso 1.';
+    if (!state.adapter) return 'Conecta el adaptador del paso 2.';
+    if (state.esp.info?.transport === 'UART' && state.esp.baudRate < FAST_BAUD) return 'El firmware de esta placa usa su consola a 115200 baudios, que no puede con el enlace. Actualízalo en el paso 1.';
+    if (!state.adapterInfo?.wireless) return 'El adaptador necesita el firmware del paso 2.';
+    if (!state.keys?.complete) return 'La placa necesita sus claves del paso 1.';
     return null;
 }
 
 async function onBridgeStart() {
     if (state.bridge || bridgeBlocker()) return;
     const bridge = new Bridge(state.esp, state.adapter);
-    bridge.addEventListener('failed', (event) => stopBridge(`Stopped: ${describe(event.detail)}`, 'bad'));
+    bridge.addEventListener('failed', (event) => stopBridge(`Detenido: ${describe(event.detail)}`, 'bad'));
     state.bridgeNote = null;
-    setLine('bridge-status', 'Starting…');
+    setLine('bridge-status', 'Arrancando…');
     try {
         await bridge.start();
     } catch (error) {
@@ -936,7 +940,7 @@ async function onBridgeStart() {
     }
     state.bridge = bridge;
     state.bridgeTimer = setInterval(renderBridge, 1000);
-    log('page', 'carrying the link between the boards');
+    log('page', 'transportando el enlace entre las placas');
     render();
     renderBridge();
     pollSoon();
@@ -949,14 +953,14 @@ async function stopBridge(message = null, tone = '') {
     clearInterval(state.bridgeTimer);
     await bridge.stop();
     state.bridgeNote = message ? { text: message, tone } : null;
-    log('page', 'no longer carrying the link');
+    log('page', 'ya no transporta el enlace');
     render();
 }
 
 function renderBridge() {
     const stats = state.bridge?.stats;
     if (!stats) return;
-    $('bridge-out').textContent = `${stats.toAdapterFrames.toLocaleString()} ${stats.toAdapterFrames === 1 ? 'frame' : 'frames'}`;
+    $('bridge-out').textContent = `${stats.toAdapterFrames.toLocaleString()} ${stats.toAdapterFrames === 1 ? 'fotograma' : 'fotogramas'}`;
     $('bridge-in').textContent = `${(stats.fromAdapterBytes / 1024).toFixed(1)} KB`;
     $('bridge-sessions').textContent = String(stats.reattached);
 }
@@ -968,7 +972,7 @@ async function onWiringCheck() {
     const esp = state.esp;
     if (!esp?.attached || state.bridge) return;
     const note = (text, tone) => { state.wiringNote = { text, tone }; render(); };
-    note('Listening on the wires…');
+    note('Escuchando en los cables…');
     const frames = async () => {
         const lines = await esp.command('LDN_PICO_STATS');
         const match = lines.join(' ').match(/rx_frames=(\d+)/);
@@ -986,20 +990,25 @@ async function onWiringCheck() {
             await esp.command('LDN_PICO_MODE');
             result = await heard(1500);
         }
-        if (result === null) note('The board did not report on its link.', 'warn');
-        else if (result) note('The board hears the adapter over the wires.', 'good');
-        else note('Nothing is arriving from the adapter. The two link wires may be the wrong way round: swap them and check again. Otherwise check ground, and that the adapter has power and the firmware from step 2.', 'bad');
+        if (result === null) note('La placa no informó de su enlace.', 'warn');
+        else if (result) note('La placa oye el adaptador por los cables.', 'good');
+        else note('No llega nada del adaptador. Puede que los dos cables de enlace estén al revés: cámbialos y vuelve a comprobar. Si no, revisa la masa, y que el adaptador tenga corriente y el firmware del paso 2.', 'bad');
     } catch (error) {
         note(describe(error), 'bad');
     }
 }
 
-// ---------------------------------------------------------------- the page's two trees
+// ---------------------------------------------------------------- which tree is on show
 
-// A Game Boy Advance linked with the Switch takes the adapter and the play card; the
-// Switch on its own takes the trade card. The board is set up the same way for both.
-const PATHS = ['gba', 'switch'];
+// This build of the page leaves the Game Boy Advance tree out: no adapter card and no
+// play card, so the board is only ever used to trade with the Switch from here. The code
+// that drives the adapter and the play card is still in this file and is skipped rather
+// than removed, so it comes back on its own if those two cards are put back into
+// index.html. gbaTree() is what everything below asks before touching their elements.
+const PATHS = ['switch'];
 const PATH_STORE = 'gblink-switch-path';
+
+const gbaTree = () => Boolean($('adapter-card'));
 
 function remembered(key) {
     try { return localStorage.getItem(key); } catch { return null; }
@@ -1031,7 +1040,7 @@ function renderPaths() {
         const chosen = tab.dataset.path === state.path;
         tab.setAttribute('aria-selected', String(chosen));
         tab.disabled = !chosen && pathBusy();
-        tab.title = tab.disabled ? (state.trade ? 'Disconnect from the Switch first.' : 'Stop carrying the link first.') : '';
+        tab.title = tab.disabled ? (state.trade ? 'Desconecta de la Switch primero.' : 'Deja de transportar el enlace primero.') : '';
     }
     for (const card of document.querySelectorAll('main > [data-path]')) card.hidden = card.dataset.path !== state.path;
 }
@@ -1041,18 +1050,21 @@ function renderPaths() {
 const SOURCE_STORE = 'gblink-switch-source';
 const SERVER_STORE = 'gblink-switch-pool-server';
 const KEPT_STORE = 'gblink-switch-kept';
-const SOURCES = ['pool', 'party'];
+// The trade card offers one thing only: the player's own party, filled from a save file.
+// The pool is still in this file and comes back on its own if its button and its notes
+// are put back into index.html.
+const SOURCES = ['party'];
 
 const pooling = () => state.source === 'pool';
 
 // The board does the wireless; this card only needs it ready and something to trade.
 function tradeBlocker() {
-    if (!state.esp) return 'Connect the ESP32 board in step 1 first.';
-    if (!state.esp.info) return 'Install the firmware in step 1 first.';
-    if (!state.keys?.complete) return 'The board needs its keys before it can read the Switch\'s wireless.';
-    if (state.bridge) return 'This page is carrying the link for a Game Boy Advance. Stop that first.';
-    if (pooling()) return poolServer() ? null : 'The trade pool server\'s address has to start with wss:// or ws://.';
-    if (!state.party.canTrade) return 'Two Pokémon are needed: one to offer and one to keep.';
+    if (!state.esp) return 'Conecta primero la placa ESP32 del paso 1.';
+    if (!state.esp.info) return 'Instala primero el firmware del paso 1.';
+    if (!state.keys?.complete) return 'La placa necesita sus claves antes de poder leer la red inalámbrica de la Switch.';
+    if (state.bridge) return 'Esta página está transportando el enlace de una Game Boy Advance. Detenlo primero.';
+    if (pooling()) return poolServer() ? null : 'La dirección del servidor de la bolsa tiene que empezar por wss:// o ws://.';
+    if (!state.party.canTrade) return 'Hacen falta dos Pokémon: uno para ofrecer y otro para quedarte.';
     return null;
 }
 
@@ -1135,58 +1147,34 @@ function text(tag, className, content) {
 function renderTrade() {
     const running = Boolean(state.trade);
     const blocker = tradeBlocker();
-    const pool = pooling();
     for (const button of $('trade-source').children) {
         button.setAttribute('aria-pressed', String(button.dataset.source === state.source));
         button.disabled = running;
     }
-    $('source-note-pool').hidden = !pool;
-    $('source-note-party').hidden = pool;
+    $('source-note-party').hidden = false;
 
     drawSlots('their-slots', state.opponent?.party ?? [null, null, null, null, null, null]);
-    $('their-name').textContent = state.opponent?.name ?? 'The Switch';
-    $('our-name').textContent = pool ? 'The pool' : 'Yours';
-    if (pool) {
-        // The pool's Pokémon comes into view with the Switch's team, as it does on the Switch.
-        drawSlots('our-slots', [state.opponent ? state.poolMon : null], { marked: state.offered === 0 ? 0 : -1, mark: 'offered', empty: 'Shown with the Switch\'s team' });
-    } else {
-        // The party is what the Switch was shown, so it changes only between visits.
-        const locked = running ? 'Disconnect to put a different Pokémon here.' : '';
-        drawSlots('our-slots', state.party.slots, {
-            pick: true, empty: 'Empty',
-            marked: state.party.selected, mark: running && state.offered === state.party.selected ? 'offered' : 'chosen',
-            tools: [['save', '↓', 'Save % as a .pk3 file'], ['swap', '↑', 'Replace % from a .pk3 file', locked], ['clear', '×', 'Remove %', locked]],
-        });
-    }
-    $('party-note').hidden = $('party-board').hidden = $('party-fine').hidden = $('party-options').hidden = pool;
-    $('pool-note').hidden = $('pool-options').hidden = !pool;
-    $('kept').hidden = state.kept.length === 0;
-    drawSlots('kept-slots', state.kept, { tools: [['save', '↓', 'Save % as a .pk3 file'], ['forget', '×', 'Remove % from this list']] });
+    $('their-name').textContent = state.opponent?.name ?? 'La Switch';
+    // The party is what the Switch was shown, so it changes only between visits.
+    const locked = running ? 'Desconecta para poner aquí otro Pokémon.' : '';
+    drawSlots('our-slots', state.party.slots, {
+        pick: true, empty: 'Vacío',
+        marked: state.party.selected, mark: running && state.offered === state.party.selected ? 'offered' : 'chosen',
+        tools: [['save', '↓', 'Guardar % como archivo .pk3'], ['swap', '↑', 'Reemplazar % desde un archivo .pk3', locked], ['clear', '×', 'Quitar %', locked]],
+    });
 
     // What happened last time stays on the card until something is in the way of the next.
-    const idle = 'Create a Trade Center room on the Switch, then connect.';
+    const idle = 'Crea una sala de Centro de Intercambio en la Switch y conecta.';
     const status = running ? state.tradePhase : blocker ?? (state.tradePhase || idle);
     setLine('trade-status', status, running ? state.tradeTone : blocker ? 'warn' : state.tradeTone);
-    $('trade-hint').textContent = pool ? '' : state.partyNote;
+    $('trade-hint').textContent = state.partyNote;
     $('trade-dot').className = `dot ${running ? state.tradeTone || 'busy' : blocker ? '' : 'good'}`.trim();
     $('trade-connect').hidden = running;
     $('trade-connect').disabled = Boolean(blocker);
-    // With the pool the page waits for one of two answers under the Pokémon they are
-    // about, and the Switch can leave the menu with a single cancel until one is given.
-    // Neither can be changed once the trade is under way.
-    const answering = running && pool && Boolean(state.opponent && state.poolMon);
-    $('pool-answers').hidden = !answering;
-    $('pool-accept').setAttribute('aria-pressed', String(state.offered === 0));
-    $('pool-cancel').setAttribute('aria-pressed', String(state.tradeDeclining));
-    $('pool-accept').disabled = $('pool-cancel').disabled = !state.menuOpen || state.trading;
-    $('trade-decline').hidden = !running || pool || state.tradeDeclining || !state.opponent;
+    $('trade-decline').hidden = !running || state.tradeDeclining || !state.opponent;
     $('trade-decline').disabled = state.trading;
     $('trade-stop').hidden = !running;
-    for (const id of ['trade-clear', 'trade-reset']) $(id).disabled = running;
-    const server = $('pool-server');
-    if (document.activeElement !== server) server.value = state.poolServer;
-    server.disabled = running;
-    $('pool-server-reset').hidden = running || state.poolServer === POOL_SERVER;
+    renderFolder();
 }
 
 // ---------------------------------------------------------------- boxes, from a .sav
@@ -1223,7 +1211,7 @@ function renderBoxes() {
             tabs.append(button);
         });
     }
-    drawSlots('box-slots', state.boxes?.[state.box] ?? [], { pick: true, drag: true, empty: 'Empty' });
+    drawSlots('box-slots', state.boxes?.[state.box] ?? [], { pick: true, drag: true, empty: 'Vacío' });
     setLine('boxes-status', state.boxesNote?.text, state.boxesNote?.tone);
 }
 
@@ -1263,7 +1251,7 @@ async function onTradeConnect() {
     const pool = pooling();
     const controller = new AbortController();
     state.tradeStop = controller;
-    state.tradePhase = 'Asking the board for its link to the adapter';
+    state.tradePhase = 'Pidiendo a la placa su enlace con el adaptador';
     state.tradeTone = '';
     state.tradeDeclining = false;
     state.opponent = null;
@@ -1285,13 +1273,13 @@ async function onTradeConnect() {
     render();
     try {
         await session.run(controller.signal);
-        const count = state.trades === 1 ? 'One Pokémon' : `${state.trades} Pokémon`;
-        state.tradePhase = state.trades === 0 ? 'Finished without trading.' : pool ? `Finished. ${count} went to the Switch from the pool.` : `Finished. ${count} came across.`;
+        const count = state.trades === 1 ? 'Un Pokémon' : `${state.trades} Pokémon`;
+        state.tradePhase = state.trades === 0 ? 'Terminado sin intercambiar.' : pool ? `Terminado. ${count} fueron a la Switch desde la bolsa.` : `Terminado. ${count} llegaron.`;
         state.tradeTone = state.trades > 0 ? 'good' : '';
     } catch (error) {
         const stopped = error instanceof CancelledError;
         const gone = !state.esp;
-        state.tradePhase = stopped ? 'Disconnected.' : gone ? 'The ESP32 board stopped answering during the trade.' : describe(error);
+        state.tradePhase = stopped ? 'Desconectado.' : gone ? 'La placa ESP32 dejó de responder durante el intercambio.' : describe(error);
         state.tradeTone = stopped ? '' : 'bad';
         if (!stopped) log('trade', describe(error));
     } finally {
@@ -1333,10 +1321,10 @@ function onTradeEvent(event) {
             // Nothing is on offer until the player here says so, which is what lets the
             // Switch leave the menu with a single cancel.
             state.menuOpen = true;
-            const name = state.poolMon ? describeMon(state.poolMon).name : 'the pool\'s Pokémon';
+            const name = state.poolMon ? describeMon(state.poolMon).name : 'el Pokémon de la bolsa';
             state.tradePhase = pool
-                ? `The trade menu is open. Press Accept trade for ${name}; for a different one, CANCEL on the Switch and sit down again.`
-                : `The trade menu is open${state.trades ? ' again' : ''}. Click a Pokémon to offer it.`;
+                ? `El menú de intercambio está abierto. Pulsa Aceptar intercambio para ${name}; para otro distinto, CANCELAR en la Switch y siéntate de nuevo.`
+                : `El menú de intercambio está abierto${state.trades ? ' otra vez' : ''}. Haz clic en un Pokémon para ofrecerlo.`;
             state.tradeTone = 'good';
             break;
         }
@@ -1345,17 +1333,17 @@ function onTradeEvent(event) {
             if (event.taken && pk) {
                 state.offered = event.slot;
                 state.tradePhase = pool
-                    ? `Trade accepted. Choose what to give for ${describeMon(pk).name} on the Switch.`
-                    : `Offering ${describeMon(pk).name}. Choose one on the Switch.`;
+                    ? `Intercambio aceptado. Elige qué dar por ${describeMon(pk).name} en la Switch.`
+                    : `Ofreciendo ${describeMon(pk).name}. Elige uno en la Switch.`;
                 state.tradeTone = 'good';
             } else if (!state.opponent) {
-                state.tradePhase = 'Sit down at the trade table on the Switch first.';
+                state.tradePhase = 'Siéntate primero en la mesa de intercambio de la Switch.';
             }
             break;
         }
         case 'trading':
             state.trading = true;
-            state.tradePhase = 'The trade is under way.';
+            state.tradePhase = 'El intercambio está en marcha.';
             state.tradeTone = 'good';
             break;
         case 'declining':
@@ -1368,8 +1356,8 @@ function onTradeEvent(event) {
             state.offered = -1;
             state.tradeDeclining = false;
             state.tradePhase = pool
-                ? 'Back in the room. Sit down at the trade table again for a different Pokémon from the pool, or leave the room to finish.'
-                : 'Back in the room. Sit down at the trade table again to trade some more, or leave the room to finish.';
+                ? 'De vuelta en la sala. Siéntate otra vez en la mesa para otro Pokémon de la bolsa, o sal de la sala para terminar.'
+                : 'De vuelta en la sala. Siéntate otra vez en la mesa para intercambiar más, o sal de la sala para terminar.';
             state.tradeTone = '';
             break;
         case 'received':
@@ -1378,10 +1366,11 @@ function onTradeEvent(event) {
                 state.party.receive(event.slot, event.pk3);
                 state.trades++;
                 state.offered = -1;
-                // The Switch's party has changed too; it sends the new one once both games have saved.
+                // La Switch's party has changed too; it sends the new one once both games have saved.
                 state.opponent = null;
-                state.tradePhase = `Traded. ${describeMon(state.party.slots[event.slot]).name} is now in slot ${event.slot + 1}.`;
+                state.tradePhase = `Intercambiado. ${describeMon(state.party.slots[event.slot]).name} está ahora en la casilla ${event.slot + 1}.`;
                 state.tradeTone = 'good';
+                keepInFolder(state.party.slots[event.slot]);
             } catch (error) {
                 state.tradePhase = describe(error);
                 state.tradeTone = 'bad';
@@ -1398,13 +1387,13 @@ function onTradeEvent(event) {
             state.offered = -1;
             state.poolMon = null;
             state.opponent = null;
-            const names = `${got ? describeMon(got).name : 'The pool\'s Pokémon'} went to the Switch`;
+            const names = `${got ? describeMon(got).name : 'El Pokémon de la bolsa'} fue a la Switch`;
             if (event.sealed) {
-                state.tradePhase = `Traded. ${names}, and ${gave ? describeMon(gave).name : 'the Switch\'s'} is in the pool.`;
+                state.tradePhase = `Intercambiado. ${names}, y ${gave ? describeMon(gave).name : 'el de la Switch'} está en la bolsa.`;
                 state.tradeTone = 'good';
             } else {
                 if (gave) keep(gave);
-                state.tradePhase = `${names}, but the pool did not confirm the swap. ${gave ? describeMon(gave).name : 'What the Switch gave'} is kept below instead: save it as a file.`;
+                state.tradePhase = `${names}, pero la bolsa no confirmó el cambio. ${gave ? describeMon(gave).name : 'Lo que dio la Switch'} se guarda abajo: guárdalo como archivo.`;
                 state.tradeTone = 'warn';
             }
             break;
@@ -1423,7 +1412,7 @@ function onSlotClick(event) {
     if (pooling()) return;
     if (button.dataset.act === 'save') { savePk3(state.party.slots[index]); return; }
     if (button.dataset.act === 'swap') { openPk3Picker(index); return; }
-    if (button.dataset.act === 'clear') { twice(button, 'Sure?', () => { state.party.set(index, null); renderTrade(); }); return; }
+    if (button.dataset.act === 'clear') { twice(button, '¿Seguro?', () => { state.party.set(index, null); renderTrade(); }); return; }
     if (!state.party.slots[index]) {
         if (!state.trade) openPk3Picker(index);
         return;
@@ -1485,7 +1474,59 @@ function onKeptClick(event) {
     if (!button || !slot) return;
     const index = Number(slot.dataset.slot);
     if (button.dataset.act === 'save') savePk3(state.kept[index]);
-    else if (button.dataset.act === 'forget') twice(button, 'Sure?', () => { state.kept.splice(index, 1); storeKept(); renderTrade(); });
+    else if (button.dataset.act === 'forget') twice(button, '¿Seguro?', () => { state.kept.splice(index, 1); storeKept(); renderTrade(); });
+}
+
+// ---------------------------------------------------------------- the .pk3 folder
+
+// A Pokémon that arrives from the Switch is worth keeping as a file, so it is written
+// into the chosen folder without anyone pressing anything. The trade does not wait for
+// the disk: the file lands a moment later, and the line under the buttons says so.
+function keepInFolder(pk) {
+    if (!state.folder?.ready || !pk) return;
+    Pk3Folder.save(pk, describeMon(pk).name).then((name) => {
+        if (name) state.folderNote = `Guardado ${name} en la carpeta.`;
+        renderTrade();
+    }).catch((error) => {
+        state.folderNote = `No se pudo guardar el archivo: ${describe(error)}`;
+        renderTrade();
+    });
+}
+
+function renderFolder() {
+    const onServer = Pk3Folder.backend() === 'server';
+    const usable = Pk3Folder.available();
+    const folder = state.folder;
+    // On the project's own server there is nothing to choose and nothing to remember.
+    $('folder-actions').hidden = !usable || onServer;
+    $('folder-pick').textContent = folder && !folder.ready ? 'Reactivar el guardado en la carpeta' : folder ? 'Cambiar la carpeta' : 'Elegir la carpeta';
+    $('folder-forget').hidden = !folder || onServer;
+    $('folder-note').hidden = !folder;
+    if (!folder) return;
+    const where = onServer ? `la carpeta ${Pk3Folder.subfolder} del proyecto` : `${folder.name}/${Pk3Folder.subfolder}`;
+    $('folder-note').textContent = state.folderNote || (folder.ready
+        ? `Los Pokémon que lleguen se guardan en ${where}.`
+        : `Chrome tiene que dar permiso otra vez para escribir en ${where}.`);
+}
+
+async function onFolderPick() {
+    try {
+        const chosen = state.folder && !state.folder.ready ? await Pk3Folder.resume() : await Pk3Folder.pick();
+        if (!chosen) return;
+        state.folder = chosen;
+        state.folderNote = '';
+    } catch (error) {
+        // Closing the picker without choosing is not a failure worth reporting.
+        if (error?.name !== 'AbortError') state.folderNote = describe(error);
+    }
+    renderTrade();
+}
+
+async function onFolderForget() {
+    await Pk3Folder.forget();
+    state.folder = null;
+    state.folderNote = '';
+    renderTrade();
 }
 
 // ---------------------------------------------------------------- rendering
@@ -1520,45 +1561,47 @@ function render() {
     $('esp-details').hidden = !esp.connected;
     $('esp-more').hidden = !esp.connected || esp.busy;
     $('keys-replace').hidden = !state.keys?.complete;
-    if (!armed.has($('keys-replace'))) $('keys-replace').textContent = state.replacingKeys ? 'Keep the stored keys' : 'Replace the keys';
+    if (!armed.has($('keys-replace'))) $('keys-replace').textContent = state.replacingKeys ? 'Conservar las claves guardadas' : 'Reemplazar las claves';
     $('keys-erase').hidden = !state.keys || !Object.keys(KEY_NAMES).some((flag) => state.keys[flag]);
 
     renderTrade();
     renderBoxes();
 
-    const adapter = adapterView();
-    adapterActions = drawCard('adapter', adapter);
-    $('adapter-details').hidden = !adapter.connected;
-    $('adapter-more').hidden = Boolean(adapter.busy);
-    $('adapter-reinstall').hidden = !adapter.done;
-    $('adapter-disconnect').hidden = !state.adapter && !state.bootDevice;
-    $('adapter-connect-serial').hidden = Boolean(state.adapter) || !GbLinkSerial.available() || !GbLinkUsb.available();
-    $('adapter-file-clear').hidden = !state.customUf2;
-    setLine('adapter-file-status', state.uf2Note, 'bad');
-    $('adapter-bootsel').hidden = !state.adapter;
-    drawSteps();
+    if (gbaTree()) {
+        const adapter = adapterView();
+        adapterActions = drawCard('adapter', adapter);
+        $('adapter-details').hidden = !adapter.connected;
+        $('adapter-more').hidden = Boolean(adapter.busy);
+        $('adapter-reinstall').hidden = !adapter.done;
+        $('adapter-disconnect').hidden = !state.adapter && !state.bootDevice;
+        $('adapter-connect-serial').hidden = Boolean(state.adapter) || !GbLinkSerial.available() || !GbLinkUsb.available();
+        $('adapter-file-clear').hidden = !state.customUf2;
+        setLine('adapter-file-status', state.uf2Note, 'bad');
+        $('adapter-bootsel').hidden = !state.adapter;
+        drawSteps();
 
-    const pins = LINK_PINS[state.esp?.info?.chip];
-    const labels = LINK_PIN_LABELS[state.esp?.info?.chip];
-    const pin = (index) => `GPIO${pins[index]}${labels ? ` (${labels[index]})` : ''}`;
-    $('wiring').hidden = Boolean(pins);
-    $('wires').hidden = !pins;
-    if (pins) {
-        $('wire-tx').textContent = pin(0);
-        $('wire-rx').textContent = pin(1);
+        const pins = LINK_PINS[state.esp?.info?.chip];
+        const labels = LINK_PIN_LABELS[state.esp?.info?.chip];
+        const pin = (index) => `GPIO${pins[index]}${labels ? ` (${labels[index]})` : ''}`;
+        $('wiring').hidden = Boolean(pins);
+        $('wires').hidden = !pins;
+        if (pins) {
+            $('wire-tx').textContent = pin(0);
+            $('wire-rx').textContent = pin(1);
+        }
+        $('wiring-check').disabled = !state.esp?.attached || Boolean(state.bridge);
+        setLine('wiring-status', state.wiringNote?.text, state.wiringNote?.tone);
+
+        const blocker = bridgeBlocker();
+        $('bridge-start').hidden = Boolean(state.bridge);
+        $('bridge-start').disabled = Boolean(blocker);
+        $('bridge-stop').hidden = !state.bridge;
+        $('bridge-facts').hidden = !state.bridge;
+        if (state.bridge) setLine('bridge-status', 'Transportando el enlace. Mantén esta pestaña abierta y visible.', 'good');
+        else if (state.bridgeNote) setLine('bridge-status', state.bridgeNote.text, state.bridgeNote.tone);
+        else setLine('bridge-status', blocker ?? 'Listo.');
+        renderSession();
     }
-    $('wiring-check').disabled = !state.esp?.attached || Boolean(state.bridge);
-    setLine('wiring-status', state.wiringNote?.text, state.wiringNote?.tone);
-
-    const blocker = bridgeBlocker();
-    $('bridge-start').hidden = Boolean(state.bridge);
-    $('bridge-start').disabled = Boolean(blocker);
-    $('bridge-stop').hidden = !state.bridge;
-    $('bridge-facts').hidden = !state.bridge;
-    if (state.bridge) setLine('bridge-status', 'Carrying the link. Keep this tab open and in view.', 'good');
-    else if (state.bridgeNote) setLine('bridge-status', state.bridgeNote.text, state.bridgeNote.tone);
-    else setLine('bridge-status', blocker ?? 'Ready.');
-    renderSession();
 }
 
 function drawSteps() {
@@ -1569,8 +1612,8 @@ function drawSteps() {
     const order = ['restart', 'choose', 'write', 'reconnect'];
     const at = order.indexOf(install.step);
     $('adapter-step-restart').textContent = install.manual
-        ? 'Hold the adapter’s BOOTSEL button while plugging it in'
-        : 'Restart the adapter in update mode';
+        ? 'Mantén pulsado BOOTSEL del adaptador mientras lo enchufas'
+        : 'Reiniciar el adaptador en modo de actualización';
     for (const item of list.children) {
         const index = order.indexOf(item.dataset.step);
         // By hand, the first two steps are both the user's and both wait on the button.
@@ -1582,15 +1625,17 @@ function drawSteps() {
 // ---------------------------------------------------------------- start-up
 
 function wireUp() {
-    for (const id of ['esp-status', 'keys-status', 'adapter-status', 'adapter-file-status', 'bridge-status', 'wiring-status', 'trade-status', 'boxes-status']) $(id).dataset.base = 'status';
+    const statusIds = ['esp-status', 'keys-status', 'trade-status', 'boxes-status'];
+    if (gbaTree()) statusIds.push('adapter-status', 'adapter-file-status', 'bridge-status', 'wiring-status');
+    for (const id of statusIds) $(id).dataset.base = 'status';
 
     $('esp-primary').addEventListener('click', () => espActions.primary?.());
     $('esp-secondary').addEventListener('click', () => espActions.secondary?.());
     $('esp-reinstall').addEventListener('click', () => onEspInstall());
-    $('esp-wipe').addEventListener('click', (event) => twice(event.currentTarget, 'Click again: this erases the keys too', () => onEspInstall(true)));
+    $('esp-wipe').addEventListener('click', (event) => twice(event.currentTarget, 'Pulsa otra vez: esto también borra las claves', () => onEspInstall(true)));
     $('esp-disconnect').addEventListener('click', () => dropEsp());
     $('keys-replace').addEventListener('click', () => { state.replacingKeys = !state.replacingKeys; state.keysNote = null; render(); });
-    $('keys-erase').addEventListener('click', (event) => twice(event.currentTarget, 'Click again to erase the keys', onKeysErase));
+    $('keys-erase').addEventListener('click', (event) => twice(event.currentTarget, 'Pulsa otra vez para borrar las claves', onKeysErase));
     $('keys-file').addEventListener('change', (event) => {
         onKeysFile(event.target.files[0]);
         event.target.value = '';
@@ -1602,49 +1647,38 @@ function wireUp() {
     // A file dropped beside the target would otherwise replace the page.
     for (const name of ['dragover', 'drop']) window.addEventListener(name, (event) => event.preventDefault());
 
-    $('adapter-primary').addEventListener('click', () => adapterActions.primary?.());
-    $('adapter-secondary').addEventListener('click', () => adapterActions.secondary?.());
-    $('adapter-select').addEventListener('click', onAdapterSelect);
-    $('adapter-reinstall').addEventListener('click', onAdapterInstall);
-    $('adapter-connect-serial').addEventListener('click', () => onAdapterConnect('serial'));
-    $('adapter-disconnect').addEventListener('click', () => dropAdapter());
-    $('adapter-file').addEventListener('change', (event) => onAdapterFile(event.target.files[0]));
-    $('adapter-file-clear').addEventListener('click', () => {
-        state.customUf2 = null;
-        $('adapter-file').value = '';
-        render();
-    });
-    $('adapter-bootsel').addEventListener('click', async () => {
-        const adapter = state.adapter;
-        if (!adapter) return;
-        if (state.bridge) await stopBridge();
-        await adapter.rebootToBootloader();
-        await sleep(200);
-        await dropAdapter({ code: 'gone', text: 'The adapter is restarting in update mode; an RPI-RP2 drive should appear.' });
-    });
+    if (gbaTree()) {
+        $('adapter-primary').addEventListener('click', () => adapterActions.primary?.());
+        $('adapter-secondary').addEventListener('click', () => adapterActions.secondary?.());
+        $('adapter-select').addEventListener('click', onAdapterSelect);
+        $('adapter-reinstall').addEventListener('click', onAdapterInstall);
+        $('adapter-connect-serial').addEventListener('click', () => onAdapterConnect('serial'));
+        $('adapter-disconnect').addEventListener('click', () => dropAdapter());
+        $('adapter-file').addEventListener('change', (event) => onAdapterFile(event.target.files[0]));
+        $('adapter-file-clear').addEventListener('click', () => {
+            state.customUf2 = null;
+            $('adapter-file').value = '';
+            render();
+        });
+        $('adapter-bootsel').addEventListener('click', async () => {
+            const adapter = state.adapter;
+            if (!adapter) return;
+            if (state.bridge) await stopBridge();
+            await adapter.rebootToBootloader();
+            await sleep(200);
+            await dropAdapter({ code: 'gone', text: 'El adaptador se está reiniciando en modo de actualización; debería aparecer una unidad RPI-RP2.' });
+        });
+    }
 
     $('paths').addEventListener('click', (event) => choosePath(event.target.closest('[data-path]')?.dataset.path));
     window.addEventListener('hashchange', () => choosePath(location.hash.slice(1), { keep: false }));
     $('trade-source').addEventListener('click', (event) => chooseSource(event.target.closest('[data-source]')?.dataset.source));
-    $('pool-accept').addEventListener('click', () => { if (pooling() && state.poolMon) state.trade?.offerSlot(0); });
-    $('pool-cancel').addEventListener('click', () => { state.trade?.declineTrade(); state.tradeDeclining = true; renderTrade(); });
-    $('pool-server').addEventListener('change', (event) => setPoolServer(event.target.value));
-    $('pool-server-reset').addEventListener('click', () => setPoolServer(''));
-    $('kept-slots').addEventListener('click', onKeptClick);
+    $('folder-pick').addEventListener('click', onFolderPick);
+    $('folder-forget').addEventListener('click', onFolderForget);
     $('trade-connect').addEventListener('click', onTradeConnect);
     $('trade-decline').addEventListener('click', () => { state.trade?.declineTrade(); state.tradeDeclining = true; renderTrade(); });
     $('trade-stop').addEventListener('click', () => state.tradeStop?.abort());
     $('our-slots').addEventListener('click', onSlotClick);
-    $('trade-clear').addEventListener('click', () => {
-        state.party.set(state.party.selected, null);
-        renderTrade();
-    });
-    $('trade-reset').addEventListener('click', (event) => twice(event.currentTarget, 'Click again to replace your party', async () => {
-        localStorage.removeItem('gblink-switch-party');
-        await state.party.load();
-        state.partyNote = '';
-        renderTrade();
-    }));
     $('trade-file').addEventListener('change', (event) => onPk3File(event.target.files[0]));
     $('our-slots').addEventListener('dragover', (event) => {
         const slot = event.target.closest('.slot');
@@ -1684,9 +1718,11 @@ function wireUp() {
     });
     $('box-slots').addEventListener('click', onBoxSlotClick);
 
-    $('bridge-start').addEventListener('click', onBridgeStart);
-    $('bridge-stop').addEventListener('click', () => stopBridge());
-    $('wiring-check').addEventListener('click', onWiringCheck);
+    if (gbaTree()) {
+        $('bridge-start').addEventListener('click', onBridgeStart);
+        $('bridge-stop').addEventListener('click', () => stopBridge());
+        $('wiring-check').addEventListener('click', onWiringCheck);
+    }
 
     $('log-clear').addEventListener('click', () => {
         logLines.length = 0;
@@ -1704,7 +1740,7 @@ function wireUp() {
             const away = Math.round((Date.now() - state.hiddenAt) / 1000);
             state.hiddenAt = 0;
             if (away >= 2) {
-                state.tradePhase = `This tab was in the background for ${away}s, which stops the link. Keep it in view while you trade.`;
+                state.tradePhase = `Esta pestaña estuvo en segundo plano ${away}s, lo que corta el enlace. Mantenla visible mientras intercambias.`;
                 state.tradeTone = 'warn';
                 renderTrade();
             }
@@ -1720,33 +1756,36 @@ async function start() {
     wireUp();
     // A link to one of the trees wins over the one used last.
     const asked = location.hash.slice(1);
-    state.path = PATHS.includes(asked) ? asked : PATHS.includes(remembered(PATH_STORE)) ? remembered(PATH_STORE) : 'gba';
-    state.source = remembered(SOURCE_STORE) === 'party' ? 'party' : 'pool';
+    state.path = PATHS.includes(asked) ? asked : PATHS.includes(remembered(PATH_STORE)) ? remembered(PATH_STORE) : 'switch';
+    state.source = 'party';
     state.poolServer = remembered(SERVER_STORE) || POOL_SERVER;
     loadKept();
+    state.folder = await Pk3Folder.restore();
     const serial = EspDevice.available();
     if (!serial || !window.isSecureContext) {
         const notice = $('unsupported');
         notice.hidden = false;
         notice.textContent = serial
-            ? 'Browsers only allow access to USB devices from https:// pages or from localhost.'
-            : 'This browser has no Web Serial, which this page needs to reach the boards. Use Chrome, Edge or another Chromium browser on a computer.';
+            ? 'Los navegadores solo dan acceso a dispositivos USB desde páginas https:// o desde localhost.'
+            : 'Este navegador no tiene Web Serial, que esta página necesita para llegar a las placas. Usa Chrome, Edge u otro navegador Chromium en un ordenador.';
     }
     try {
-        state.partyNote = (await state.party.load()) === 'empty' ? 'Drop a .pk3 file on a slot to add a Pokémon.' : '';
+        state.partyNote = (await state.party.load()) === 'empty' ? 'Suelta un archivo .pk3 en una casilla para añadir un Pokémon.' : '';
     } catch (error) {
         log('page', describe(error));
     }
     try {
         state.manifest = await loadManifest();
         const adapter = state.manifest.adapter;
-        $('adapter-download').href = state.manifest.base + adapter.path;
-        $('adapter-download').textContent = `the firmware file (${adapter.version})`;
+        if (gbaTree()) {
+            $('adapter-download').href = state.manifest.base + adapter.path;
+            $('adapter-download').textContent = `el archivo de firmware (${adapter.version})`;
+        }
     } catch (error) {
         log('page', describe(error));
     }
     render();
-    if (!serial) for (const id of ['esp-primary', 'adapter-primary']) $(id).disabled = true;
+    if (!serial) for (const id of ['esp-primary']) $(id).disabled = true;
 }
 
 start();

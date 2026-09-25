@@ -63,14 +63,20 @@ it installs.
 ## Running it
 
 Browsers only expose USB devices to pages served over `https://` or from `localhost`.
-Any static host works (GitHub Pages included). Locally:
+Any static host works (GitHub Pages included). Locally, `run.bat` — or `serve.py` by hand —
+serves `web/` and gives the page somewhere to put the Pokémon it trades:
 
 ```
-python3 -m http.server -d web 8000
+python3 serve.py 8000
 ```
 
 then open <http://localhost:8000> in Chrome, Edge or another Chromium browser on a
 computer.
+
+`serve.py` answers `GET /api/pk3` and `POST /api/pk3/<name>`, and writes what it is sent
+into `PK3/` at the project root, so a Pokémon that arrives from the Switch leaves a `.pk3`
+behind without anything being pressed. Served by a plain static server instead, the page
+falls back to the File System Access API and asks for a folder once.
 
 | Browser | ESP32 board | Adapter | Installing adapter firmware |
 | --- | --- | --- | --- |
@@ -183,6 +189,7 @@ The offsets come from each build's `flasher_args.json`.
 | `js/flash-pico.js` | installing the adapter firmware |
 | `js/keys.js` | picking the four values out of `prod.keys` |
 | `js/manifest.js` | the bundled firmware list |
+| `js/pk3-folder.js` | where a traded Pokémon is written: through `serve.py` into `PK3/`, or, on any other host, through the File System Access API into a folder the user picks once |
 | `js/app.js` | the page: the two trees, and each card drawn from one view of its state (status line, hint, one button) |
 | `js/trade/` | trading without a Game Boy Advance: `adapter.js` (the wireless adapter's frames, as the board relays them), `link.js` (joining the room and answering each frame), `rfu.js` and `engine.js` (the games' link protocol and the trade itself), `pk3.js` with the generated `pk3-data.js` (Pokémon data), `pool.js` (the trade pool's server), `party.js`, `sprites.js`, `session.js` (a visit to the room, with either) and `bytes.js` |
 | `js/launcher-return.js` | the "Launcher" button shown when the page is opened from the [GB-Link launcher](https://launcher.gblink.io) (`?from=gblink-launcher`); the same file the other GB-Link web clients carry |

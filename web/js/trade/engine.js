@@ -27,7 +27,7 @@ export class TradeEngine {
     constructor(party, offered, { minimum = 2 } = {}) {
         const count = party.filter(Boolean).length;
         if (party.length !== 6 || !(offered >= 0 && offered <= 5) || count < minimum || (count > 0 && !party[offered]))
-            throw new DataError('The party needs at least two Pokémon and a valid selected slot.');
+            throw new DataError('El equipo necesita al menos dos Pokémon y una casilla seleccionada válida.');
         this.party = party.map((p) => (p ? toWire(p) : new Uint8Array(100)));
         this.offered = offered;
         this.sentCursor = -1;
@@ -83,7 +83,7 @@ export class TradeEngine {
         this.postSeat = 20;
         this.third = { emits: 0, gap: 0 };
         this.fourth = { emits: 0, gap: 0 };
-        // Sitting down again after a cancelled menu: that menu's state goes, and the
+        // Volviendo a sentarse after a cancelled menu: that menu's state goes, and the
         // standby rounds carry on from wherever the count has got to, not from the two
         // the first visit used.
         if (this.postCancel) {
@@ -97,7 +97,7 @@ export class TradeEngine {
             this.animWait = this.reselect = -1;
             this.state = 0;
             this.setDeclining(false, null);
-            this.onLog?.('Sitting down again');
+            this.onLog?.('Volviendo a sentarse');
         }
     }
 
@@ -139,7 +139,7 @@ export class TradeEngine {
     setDeclining(value, notice) {
         if (this.declining === value) return;
         this.declining = value;
-        this.onLog?.(value ? 'Declining the trade' : 'Offering the trade again');
+        this.onLog?.(value ? 'Rechazando el intercambio' : 'Ofreciendo el intercambio otra vez');
         if (notice) this.onNotice?.(notice);
         this.onDecliningChanged?.(value);
     }
@@ -151,8 +151,8 @@ export class TradeEngine {
     // its own player has answered, so a later block replaces an earlier one.
     decline() {
         if (this.declining || this.done || this.state === 4) return;
-        this.setDeclining(true, this.state === 3 ? 'Cancelling the trade: answer the question on the Switch, then choose CANCEL there'
-            : 'Cancelling the trade: choose CANCEL on the Switch to leave');
+        this.setDeclining(true, this.state === 3 ? 'Cancelando el intercambio: responde a la pregunta en la Switch y elige CANCELAR allí'
+            : 'Cancelando el intercambio: elige CANCELAR en la Switch para salir');
         this.awaitingVerdict = false;
         if (this.state === 3) this.pending = linkCommand(LINK.READY_CANCEL);
         else if (this.selected) this.pending = linkCommand(LINK.CANCEL);
@@ -162,12 +162,12 @@ export class TradeEngine {
         if (!(slot >= 0 && slot <= 5) || !this.occupied(slot) || this.done || this.cancelBarrier || this.returnBarrier || this.postCancel) return false;
         if (slot === this.offered && this.offering && !this.declining) return true;
         if (this.state === 3 || this.state === 4) {
-            this.onNotice?.('The Switch is already confirming a trade. Offer again once it is done.');
+            this.onNotice?.('La Switch ya está confirmando un intercambio. Vuelve a ofrecer cuando termine.');
             return false;
         }
         this.offered = slot;
         this.offering = true;
-        this.onLog?.(`Offering slot ${slot + 1}`);
+        this.onLog?.(`Ofreciendo la casilla ${slot + 1}`);
         this.setDeclining(false, null);
         if (this.selected) this.pending = linkCommand(LINK.READY, this.offered);
         return true;
@@ -184,13 +184,13 @@ export class TradeEngine {
         let barrierSeen = false;
         for (let i = 0; i < Math.min(5, slots.length); i++) {
             const slot = slots[i];
-            if (slot.length !== 14) throw new DataError('Invalid RFU command size');
+            if (slot.length !== 14) throw new DataError('Tamaño de comando RFU no válido');
             const word = u16(slot), op = word & 0xff00, value = u16(slot, 2);
             if (op === 0xa100) requests.push(value);
             else if (op === 0x8800) this.receivers[i].init(value);
             else if (op === 0x8900 && this.receivers[i].add(word & 31, slot.subarray(2, 14))) completed.push({ peer: i, count: this.receivers[i].count, data: this.receivers[i].data.slice() });
             if (!this.hostReady && op === 0xbe00) {
-                if (!this.hostInSeat) { this.hostInSeat = true; this.barrier.reset(); this.onLog?.('Host entered the room'); }
+                if (!this.hostInSeat) { this.hostInSeat = true; this.barrier.reset(); this.onLog?.('El anfitrión entró en la sala'); }
                 if ((value & 255) === 22) this.hostReady = true;
             }
             if (op === 0xbe00 && (value & 255) === 23) this.hostExiting = true;
@@ -238,7 +238,7 @@ export class TradeEngine {
         this.hostBlocks++;
         if (this.hostBlocks === 3) {
             const parsed = [0, 1, 2, 3, 4, 5].map((i) => new Pk3(this.hostParty.subarray(i * 100, (i + 1) * 100)));
-            for (const p of parsed) if (p.species !== 0 && !p.checksumValid) throw new DataError('Opponent PK3 checksum failed');
+            for (const p of parsed) if (p.species !== 0 && !p.checksumValid) throw new DataError('Falló la suma de comprobación del PK3 del rival');
             this.onOpponentParty?.(parsed.map((p) => (p.species === 0 ? null : p.data.slice())), this.hostName ?? 'Switch');
             if (this.state === 0) this.state = 1;
         }
@@ -248,7 +248,7 @@ export class TradeEngine {
         this.onLog?.(`LINKCMD ${command.toString(16).padStart(4, '0')} cursor=${cursor}`);
         switch (command) {
             case LINK.SET_MONS:
-                if (cursor < 0 || cursor > 5) throw new DataError('Invalid opponent cursor');
+                if (cursor < 0 || cursor > 5) throw new DataError('Cursor del rival no válido');
                 this.hostCursor = cursor;
                 // A decline that raced the leader's SetMons answers the confirmation with ReadyCancel.
                 if (this.state === 1 || this.state === 2) {
@@ -265,8 +265,8 @@ export class TradeEngine {
                 if (this.done) break;
                 this.offering = false;
                 this.setDeclining(true, this.selected
-                    ? 'The Switch asked to leave: choose CANCEL there once more'
-                    : 'The Switch asked to leave the trade menu');
+                    ? 'La Switch pidió salir: elige CANCELAR allí una vez más'
+                    : 'La Switch pidió salir del menú de intercambio');
                 if (this.menuComplete && (this.state === 1 || this.state === 2)) { this.selected = true; this.pending = linkCommand(LINK.CANCEL); }
                 break;
             case LINK.START:
@@ -283,7 +283,7 @@ export class TradeEngine {
             case LINK.PARTNER_CANCEL:
                 // The Switch picked a Pokémon against this side's cancel. Both answers are
                 // spent, and the next one is the player's to give again.
-                if (command === LINK.PARTNER_CANCEL) { this.offering = false; this.setDeclining(false, 'The Switch chose a Pokémon while this side was cancelling, so that trade was called off. Choose again.'); }
+                if (command === LINK.PARTNER_CANCEL) { this.offering = false; this.setDeclining(false, 'La Switch eligió un Pokémon mientras este lado cancelaba, así que se anuló el intercambio. Elige otra vez.'); }
                 this.state = 1; this.selected = false; this.reselect = 60; this.pending = null; this.cancelAfterSend = false;
                 this.confirmed = false; this.cancelled = false; this.hostCursor = -1;
                 break;
@@ -291,7 +291,7 @@ export class TradeEngine {
     }
 
     commit() {
-        if (this.hostCursor < 0 || this.hostBlocks !== 3) throw new DataError('Trade confirmed without a complete opponent selection');
+        if (this.hostCursor < 0 || this.hostBlocks !== 3) throw new DataError('Intercambio confirmado sin una selección completa del rival');
         const received = this.hostParty.slice(this.hostCursor * 100, (this.hostCursor + 1) * 100);
         // The traded slot is the cursor of the last Ready sent, which can differ from the one on offer.
         const slot = this.sentCursor;

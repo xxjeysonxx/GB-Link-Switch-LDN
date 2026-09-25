@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>GB-Link Switch LDN</title>
-    <meta name="description" content="Play Pokémon FireRed and LeafGreen on the Switch with a real Game Boy Advance, or trade with the Switch straight from your browser.">
+    <meta name="description" content="Intercambia Pokémon con la Switch desde tu navegador, con los Pokémon de tu archivo de guardado.">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%237c8cff'/%3E%3Cpath d='M9 12h14M9 20h14M12 9l-3 3 3 3M20 17l3 3-3 3' stroke='%230b0d18' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="style.css">
 
@@ -13,27 +13,22 @@
     <header class="masthead">
         <div class="masthead-row">
             <h1>GB-Link Switch LDN</h1>
-            <nav class="site-links" aria-label="GB-Link links">
+            <nav class="site-links" aria-label="Enlaces de GB-Link">
                 <a href="https://gblink.io">gblink.io</a>
                 <a href="https://github.com/GB-Link/GB-Link-Switch-LDN">GitHub</a>
             </nav>
         </div>
-        <p>Play Pokémon FireRed and LeafGreen on the Switch with a real Game Boy Advance, or trade with the Switch straight from this page.</p>
+        <p>Intercambia Pokémon con la Switch directamente desde esta página, con una placa ESP32 por USB.</p>
     </header>
 
     <main>
         <p id="unsupported" class="notice notice-error" hidden></p>
 
-        <nav class="paths" id="paths" role="tablist" aria-label="What links with the Switch">
-            <button class="path" type="button" role="tab" id="path-gba" data-path="gba" aria-selected="true">
-                <strong>GBA to Switch</strong>
-                <span>A real Game Boy Advance trades and battles with the Switch.</span>
-                <span class="needs">ESP32 + GB-Link required</span>
-            </button>
-            <button class="path" type="button" role="tab" id="path-switch" data-path="switch" aria-selected="false">
-                <strong>PC to Switch</strong>
-                <span>Trade with the Switch from this page: Wonder Trade, or your own .pk3 files.</span>
-                <span class="needs">ESP32 required</span>
+        <nav class="paths" id="paths" role="tablist" aria-label="Qué se conecta con la Switch">
+            <button class="path" type="button" role="tab" id="path-switch" data-path="switch" aria-selected="true">
+                <strong>PC a Switch</strong>
+                <span>Intercambia con la Switch desde esta página, con los Pokémon de tu archivo de guardado.</span>
+                <span class="needs">Requiere ESP32</span>
             </button>
         </nav>
 
@@ -41,8 +36,8 @@
             <div class="card-head">
                 <span class="step">1</span>
                 <div>
-                    <h2 id="esp-title">ESP32 board</h2>
-                    <p class="sub">Joins the Switch's wireless. ESP32-S3, C6, C3 or the original ESP32.</p>
+                    <h2 id="esp-title">Placa ESP32</h2>
+                    <p class="sub">Se conecta a la red inalámbrica de la Switch. ESP32-S3, C6, C3 o el ESP32 original.</p>
                 </div>
                 <span class="dot" id="esp-dot"></span>
             </div>
@@ -57,235 +52,122 @@
             <div class="panel" id="keys-panel" hidden>
                 <label class="drop" id="keys-drop">
                     <input type="file" id="keys-file" accept=".keys,.txt,text/plain">
-                    <strong>Drop your <code>prod.keys</code> here</strong>
-                    <span>or click to choose the file</span>
+                    <strong>Suelta aquí tu <code>prod.keys</code></strong>
+                    <span>o haz clic para elegir el archivo</span>
                 </label>
                 <p class="status" id="keys-status" aria-live="polite"></p>
-                <p class="fine">The Switch's wireless is encrypted with keys from the console. Four of them go from this file to the board over USB. Nothing is uploaded.</p>
+                <p class="fine">La red inalámbrica de la Switch está cifrada con claves de la consola. Cuatro de ellas van de este archivo a la placa por USB. No se sube nada.</p>
             </div>
 
             <details class="more" id="esp-details" hidden>
-                <summary>Details</summary>
+                <summary>Detalles</summary>
                 <dl class="facts">
                     <div><dt>Chip</dt><dd id="esp-chip">–</dd></div>
                     <div><dt>Firmware</dt><dd id="esp-version">–</dd></div>
-                    <div><dt>Console</dt><dd id="esp-transport">–</dd></div>
-                    <div><dt>Switch’s room</dt><dd id="esp-signal">–</dd></div>
+                    <div><dt>Consola</dt><dd id="esp-transport">–</dd></div>
+                    <div><dt>Sala de la Switch</dt><dd id="esp-signal">–</dd></div>
                 </dl>
             </details>
             <details class="more" id="esp-more" hidden>
-                <summary>More options</summary>
+                <summary>Más opciones</summary>
                 <div class="actions">
-                    <button id="esp-reinstall">Install the firmware again</button>
-                    <button id="esp-wipe">Erase everything and install</button>
-                    <button id="keys-replace">Replace the keys</button>
-                    <button id="keys-erase">Erase the keys</button>
-                    <button id="esp-disconnect">Disconnect</button>
+                    <button id="esp-reinstall">Instalar el firmware de nuevo</button>
+                    <button id="esp-wipe">Borrar todo e instalar</button>
+                    <button id="keys-replace">Reemplazar las claves</button>
+                    <button id="keys-erase">Borrar las claves</button>
+                    <button id="esp-disconnect">Desconectar</button>
                 </div>
-                <p class="fine">Installing again keeps the stored keys. Erasing everything does not.</p>
+                <p class="fine">Instalar de nuevo conserva las claves guardadas. Borrar todo no.</p>
             </details>
         </section>
 
-        <section class="card" id="adapter-card" data-path="gba" aria-labelledby="adapter-title">
-            <div class="card-head">
-                <span class="step">2</span>
-                <div>
-                    <h2 id="adapter-title">GB-Link adapter</h2>
-                    <p class="sub">Plugs into the Game Boy Advance in place of a Wireless Adapter, with a Game Boy Color link cable. A Game Boy Advance cable does not work here.</p>
-                </div>
-                <span class="dot" id="adapter-dot"></span>
-            </div>
-            <p class="status" id="adapter-status" aria-live="polite"></p>
-            <p class="hint" id="adapter-hint"></p>
-            <ol class="steps" id="adapter-steps" hidden>
-                <li data-step="restart"><span id="adapter-step-restart">Put the adapter in update mode</span></li>
-                <li data-step="choose">Let the browser use it: click the button and pick <strong>RP2 Boot</strong>
-                    <div class="actions"><button class="primary" id="adapter-select">Choose “RP2 Boot”</button></div></li>
-                <li data-step="write">Write the firmware
-                    <div class="progress" id="adapter-progress"><div class="bar"></div></div></li>
-                <li data-step="reconnect">Reconnect</li>
-            </ol>
-            <div class="actions" id="adapter-actions">
-                <button class="primary" id="adapter-primary"></button>
-                <button class="quiet" id="adapter-secondary" hidden></button>
-            </div>
-
-            <details class="more" id="adapter-details" hidden>
-                <summary>Details</summary>
-                <dl class="facts">
-                    <div><dt>Firmware</dt><dd id="adapter-version">–</dd></div>
-                    <div><dt>Wireless adapter mode</dt><dd id="adapter-wireless">–</dd></div>
-                    <div><dt>Connected over</dt><dd id="adapter-kind">–</dd></div>
-                </dl>
-            </details>
-            <details class="more" id="adapter-more">
-                <summary>More options</summary>
-                <div class="actions">
-                    <button id="adapter-reinstall">Install the firmware again</button>
-                    <button id="adapter-connect-serial">Connect over serial instead</button>
-                    <button id="adapter-disconnect">Disconnect</button>
-                </div>
-                <p class="fine">Install a <code>.uf2</code> of your own: <input type="file" id="adapter-file" accept=".uf2"> <button class="quiet" id="adapter-file-clear" hidden>Back to the bundled firmware</button></p>
-                <p class="status" id="adapter-file-status" aria-live="polite"></p>
-                <p class="fine">By hand: hold BOOTSEL while plugging the adapter in, then copy <a id="adapter-download" href="#" download>the firmware file</a> onto the <code>RPI-RP2</code> drive that appears. <button class="quiet" id="adapter-bootsel" hidden>Restart the adapter in update mode</button></p>
-            </details>
-        </section>
-
-        <section class="card" id="play-card" data-path="gba" aria-labelledby="play-title">
-            <div class="card-head">
-                <span class="step">3</span>
-                <div>
-                    <h2 id="play-title">Play</h2>
-                    <p class="sub">Connect the two boards with three wires, or let this page carry the link.</p>
-                </div>
-                <span class="dot" id="play-dot"></span>
-            </div>
-
-            <div class="session" id="session" hidden>
-                <p class="headline" id="session-headline">–</p>
-                <p class="hint" id="session-hint"></p>
-            </div>
-
-            <div class="choices">
-                <div class="choice">
-                    <h3>Standalone</h3>
-                    <p>Three wires between the boards, powered from anything. This page is not needed while you play.</p>
-                    <p class="fine" id="wiring">Connect the board in step 1 to see which of its pins go to the adapter's <strong>GP8</strong> and <strong>GP9</strong>.</p>
-                    <table class="wires" id="wires" hidden>
-                        <thead><tr><th>ESP32 board</th><th>GB-Link adapter</th></tr></thead>
-                        <tbody>
-                            <tr><td id="wire-rx"></td><td>GP8</td></tr>
-                            <tr><td id="wire-tx"></td><td>GP9</td></tr>
-                            <tr><td>GND</td><td>GND</td></tr>
-                        </tbody>
-                    </table>
-                    <div class="actions"><button id="wiring-check" disabled>Check the wiring</button></div>
-                    <p class="status" id="wiring-status" aria-live="polite"></p>
-                </div>
-                <div class="choice">
-                    <h3>Through this computer</h3>
-                    <p>Both boards on USB, this page in between. Keep the tab in view while you play.</p>
-                    <div class="actions">
-                        <button class="primary" id="bridge-start" disabled>Start</button>
-                        <button id="bridge-stop" hidden>Stop</button>
-                    </div>
-                    <p class="status" id="bridge-status" aria-live="polite">Connect both boards first.</p>
-                    <dl class="facts" id="bridge-facts" hidden>
-                        <div><dt>To the adapter</dt><dd id="bridge-out">0 frames</dd></div>
-                        <div><dt>From the adapter</dt><dd id="bridge-in">0 KB</dd></div>
-                        <div><dt>Board restarts followed</dt><dd id="bridge-sessions">0</dd></div>
-                    </dl>
-                </div>
-            </div>
-
-            <details class="more" open>
-                <summary>On the consoles</summary>
-                <ol class="fine">
-                    <li>Switch: upstairs in a Pokémon Center, Direct Corner, Trade Center or Colosseum, become the leader.</li>
-                    <li>Game Boy Advance, with the adapter on a Game Boy Color cable: pick the same thing and join the group. The Switch shows up after a few seconds.</li>
-                    <li>After you leave the room, the board restarts and is ready again about ten seconds later.</li>
-                </ol>
-            </details>
-        </section>
-
-        <div class="row-2" data-path="switch">
+        <div class="row-2">
         <section class="card" id="trade-card" aria-labelledby="trade-title">
             <div class="card-head">
                 <span class="step">2</span>
                 <div>
-                    <h2 id="trade-title">Trade</h2>
-                    <p class="sub">Trade with the Switch from this page. The board from step 1 is all it takes.</p>
+                    <h2 id="trade-title">Intercambiar</h2>
+                    <p class="sub">Intercambia con la Switch desde esta página. Con la placa del paso 1 basta.</p>
                 </div>
                 <span class="dot" id="trade-dot"></span>
             </div>
 
-            <div class="switcher" id="trade-source" role="group" aria-label="What to trade with">
-                <button type="button" data-source="pool" aria-pressed="true">Wonder Trade</button>
-                <button type="button" data-source="party" aria-pressed="false">PK3 files</button>
+            <div class="switcher" id="trade-source" role="group" aria-label="Con qué intercambiar">
+                <button type="button" data-source="party" aria-pressed="true">Archivo de guardado</button>
             </div>
-            <p class="fine" id="source-note-pool">The pool picks the Pokémon you get, and what the Switch gives goes into the pool for the next person. See what is in it at <a href="https://pokemon.gblink.io/pool" target="_blank" rel="noopener">pokemon.gblink.io/pool</a>.</p>
-            <p class="fine" id="source-note-party" hidden>Your own party as <code>.pk3</code> files, kept in this browser. What the Switch sends takes the place of what you gave.</p>
+            <p class="fine" id="source-note-party">Tu equipo, sacado de un archivo de guardado o de las Cajas, se queda en este navegador. Lo que envía la Switch ocupa el lugar de lo que diste.</p>
 
             <p class="status" id="trade-status" aria-live="polite"></p>
             <p class="hint" id="trade-hint"></p>
 
             <div class="parties">
                 <div class="party">
-                    <h3 id="their-name">The Switch</h3>
+                    <h3 id="their-name">La Switch</h3>
                     <div class="slots" id="their-slots"></div>
                 </div>
                 <div class="party">
-                    <h3 id="our-name">The pool</h3>
+                    <h3 id="our-name">Tu equipo</h3>
                     <div class="slots" id="our-slots"></div>
-                    <p class="fine" id="party-note" hidden>Once you are both at the trade table, click a Pokémon to offer it. <span class="glyph">↓</span> saves one as a <code>.pk3</code> file, <span class="glyph">↑</span> replaces it; dropping a file on a slot does the same.</p>
-                    <div class="answers" id="pool-answers" hidden>
-                        <button class="primary" type="button" id="pool-accept" aria-pressed="false">Accept trade</button>
-                        <button type="button" id="pool-cancel" aria-pressed="false">Cancel trade</button>
-                    </div>
-                    <p class="fine" id="pool-note">The pool's Pokémon shows up here once you are both at the trade table. <strong>Accept trade</strong> offers it, before or after you pick yours on the Switch. <strong>Cancel trade</strong> declines it. For a different one, leave the table and sit down again.</p>
+                    <p class="fine" id="party-note">Cuando ambos estéis en la mesa de intercambio, haz clic en un Pokémon para ofrecerlo. <span class="glyph">↓</span> guarda uno como archivo <code>.pk3</code>, <span class="glyph">↑</span> lo reemplaza; soltar un archivo en una casilla hace lo mismo.</p>
                 </div>
-            </div>
-
-            <div class="kept" id="kept" hidden>
-                <h3>Kept here</h3>
-                <p class="fine">The pool did not confirm these trades, so what the Switch gave is kept here. <span class="glyph">↓</span> saves one as a <code>.pk3</code> file.</p>
-                <div class="slots" id="kept-slots"></div>
             </div>
 
             <input type="file" id="trade-file" accept=".pk3" hidden>
 
             <div class="actions">
-                <button class="primary" id="trade-connect">Connect</button>
-                <button id="trade-decline" hidden>Cancel trade</button>
-                <button class="quiet" id="trade-stop" hidden>Disconnect</button>
+                <button class="primary" id="trade-connect">Conectar</button>
+                <button id="trade-decline" hidden>Cancelar intercambio</button>
+                <button class="quiet" id="trade-stop" hidden>Desconectar</button>
             </div>
 
+            <p class="fine" id="folder-note" hidden></p>
+
             <details class="more" open>
-                <summary>On the Switch</summary>
+                <summary>En la Switch</summary>
                 <ol class="fine">
-                    <li>Upstairs in a Pokémon Center, Direct Corner, Trade Center, become the leader.</li>
-                    <li>Press Connect here, then accept the join on the Switch.</li>
-                    <li>Sit down at the trade table.</li>
-                    <li>CANCEL at the table takes you back to the room; sit down again for another trade. Leaving the room ends the visit.</li>
+                    <li>Arriba en un Centro Pokémon, Rincón Directo, Centro de Intercambio, conviértete en líder.</li>
+                    <li>Pulsa Conectar aquí y acepta la unión en la Switch.</li>
+                    <li>Siéntate en la mesa de intercambio.</li>
+                    <li>CANCELAR en la mesa te devuelve a la sala; siéntate de nuevo para otro intercambio. Salir de la sala termina la visita.</li>
                 </ol>
             </details>
             <details class="more">
-                <summary>More options</summary>
-                <div class="actions" id="party-options" hidden>
-                    <button class="quiet" id="trade-clear">Empty the chosen slot</button>
-                    <button class="quiet" id="trade-reset">Set default party</button>
+                <summary>Más Información</summary>
+                <p class="fine" id="party-board">Mantén la pestaña visible mientras intercambias: una pestaña oculta va demasiado lenta para el juego.</p>
+                <p class="fine" id="party-fine">Un Pokémon que llega ocupa la casilla del que se fue. Ofrécelo de nuevo para devolverlo directamente.</p>
+                <div class="actions" id="folder-actions">
+                    <button class="quiet" id="folder-pick">Elegir la carpeta</button>
+                    <button class="quiet" id="folder-forget" hidden>Dejar de guardarlos en la carpeta</button>
                 </div>
-                <p class="fine" id="pool-options"><label for="pool-server">Trade pool server</label> <input type="text" id="pool-server" spellcheck="false" autocomplete="off"> <button class="quiet" id="pool-server-reset" hidden>Back to the usual one</button></p>
-                <p class="fine" id="party-board" hidden>Keep the tab in view while you trade: a hidden tab runs too slowly for the game.</p>
-                <p class="fine" id="party-fine" hidden>A Pokémon that arrives takes the slot of the one that left. Offer it again to trade it straight back.</p>
+                <p class="fine" id="folder-help">Cada Pokémon que llegue de la Switch se guarda solo como archivo <code>.pk3</code>, dentro de la carpeta <code>PK3</code> del proyecto. Arrancando la página con <code>run.bat</code> ya funciona sin más; con cualquier otro servidor, elige tú una carpeta y se creará una <code>pk3</code> dentro. Necesita Chrome o Edge.</p>
             </details>
         </section>
 
         <section class="card" id="boxes-card" aria-labelledby="boxes-title">
             <div class="card-head">
                 <div>
-                    <h2 id="boxes-title">Boxes</h2>
-                    <p class="sub">Read-only. Shows every Pokémon in a .sav file's boxes; nothing here is sent anywhere.</p>
+                    <h2 id="boxes-title">Cajas</h2>
+                    <p class="sub">Solo lectura. Muestra todos los Pokémon de las cajas de un archivo .sav; nada de aquí se envía a ningún sitio.</p>
                 </div>
             </div>
             <label class="drop" id="sav-drop">
                 <input type="file" id="sav-file" accept=".sav">
-                <strong>Drop your <code>.sav</code> here</strong>
-                <span>or click to choose the file</span>
+                <strong>Suelta aquí tu <code>.sav</code></strong>
+                <span>o haz clic para elegir el archivo</span>
             </label>
             <p class="status" id="boxes-status" aria-live="polite"></p>
-            <div class="switcher" id="box-tabs" role="tablist" aria-label="Box"></div>
+            <div class="switcher" id="box-tabs" role="tablist" aria-label="Caja"></div>
             <div class="slots" id="box-slots"></div>
-            <p class="fine" id="boxes-hint">Click a Pokémon to put it in your party's selected slot, or drag it onto any slot below.</p>
+            <p class="fine" id="boxes-hint">Haz clic en un Pokémon para ponerlo en la casilla seleccionada de tu equipo, o arrástralo a cualquier casilla de abajo.</p>
         </section>
         </div>
 
         <section class="card" id="log-card" aria-labelledby="log-title">
             <details>
-                <summary><h2 id="log-title">Log</h2></summary>
+                <summary><h2 id="log-title">Registro</h2></summary>
                 <div class="actions">
-                    <button class="quiet" id="log-copy">Copy</button>
-                    <button class="quiet" id="log-clear">Clear</button>
+                    <button class="quiet" id="log-copy">Copiar</button>
+                    <button class="quiet" id="log-clear">Borrar</button>
                 </div>
                 <pre id="log" tabindex="0"></pre>
             </details>
@@ -293,7 +175,7 @@
     </main>
 
     <footer>
-        <p>Works in Chrome, Edge and other Chromium browsers on a computer. <a href="https://github.com/GB-Link/GB-Link-Switch-LDN">Source</a> · AGPL-3.0. Firmware is written with <a href="https://github.com/espressif/esptool-js">esptool-js</a> (Apache-2.0) and <a href="https://github.com/picoflash/picoflash">picoflash</a> (MIT). Not affiliated with Nintendo or The Pokémon Company.</p>
+        <p>Funciona en Chrome, Edge y otros navegadores Chromium en un ordenador. <a href="https://github.com/GB-Link/GB-Link-Switch-LDN">Código fuente</a> · AGPL-3.0. El firmware está escrito con <a href="https://github.com/espressif/esptool-js">esptool-js</a> (Apache-2.0) y <a href="https://github.com/picoflash/picoflash">picoflash</a> (MIT). Sin afiliación con Nintendo ni The Pokémon Company.</p>
     </footer>
 
     <script type="module" src="js/app.js"></script>

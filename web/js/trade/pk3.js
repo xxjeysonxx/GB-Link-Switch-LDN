@@ -61,7 +61,7 @@ function text(bytes, language) {
 export class Pk3 {
     // Takes either form, traded or not; data is always the 100-byte party form, decrypted.
     constructor(bytes) {
-        if (bytes.length !== STORED_SIZE && bytes.length !== PARTY_SIZE) throw new DataError('A PK3 must be 80 or 100 bytes.');
+        if (bytes.length !== STORED_SIZE && bytes.length !== PARTY_SIZE) throw new DataError('Un PK3 debe tener 80 o 100 bytes.');
         let data = new Uint8Array(PARTY_SIZE);
         data.set(bytes);
         if (checksum(data) !== u16(data, 0x1c)) data = decrypt(data);
@@ -151,7 +151,7 @@ export class Pk3 {
 // A Pokémon from a file or a saved party. Throws DataError unless it can be traded.
 export function parse(bytes) {
     const pk = new Pk3(bytes);
-    if (!pk.checksumValid || pk.species === 0 || pk.species > 386 || pk.isBadEgg) throw new DataError('PK3 checksum failed, or this is not a valid Generation 3 Pokémon.');
+    if (!pk.checksumValid || pk.species === 0 || pk.species > 386 || pk.isBadEgg) throw new DataError('Falló la suma de comprobación del PK3, o este no es un Pokémon válido de tercera generación.');
     if (bytes.length === STORED_SIZE || pk.partyLevel === 0) pk.resetPartyStats();
     return pk;
 }

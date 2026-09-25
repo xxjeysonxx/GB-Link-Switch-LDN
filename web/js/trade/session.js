@@ -56,7 +56,7 @@ export class TradeSession {
         // down costs nothing. No Pokémon is taken from it yet: one that is on offer to
         // this connection is kept from everyone else.
         if (this.pool) {
-            this.phase('Reaching the trade pool');
+            this.phase('Contactando con la bolsa de intercambio');
             await this.pool.connect();
         }
         const engine = this.engine = this.pool
@@ -87,7 +87,7 @@ export class TradeSession {
         let taken = false;
         try {
             const reply = await device.command('LDN_ADAPTER host', 3000);
-            if (!reply.includes('LDN_ADAPTER host')) throw new ConnectionError('The board would not hand over its adapter link. Install the firmware in step 1 and try again.');
+            if (!reply.includes('LDN_ADAPTER host')) throw new ConnectionError('La placa no cedió su enlace con el adaptador. Instala el firmware del paso 1 y vuelve a intentarlo.');
             taken = true;
             this.emit({ event: 'device', model: device.info?.chip, firmware: device.info?.version });
             // Frames arrive as the board sends them, so the page answers at the link's
@@ -100,7 +100,7 @@ export class TradeSession {
                     }
                 } catch (error) { this.failure ??= error; }
             };
-            this.phase('Waiting for the board to find the room');
+            this.phase('Esperando a que la placa encuentre la sala');
             await this.pump(link, signal);
         } finally {
             device.onAdapterFrame = null;
@@ -109,7 +109,7 @@ export class TradeSession {
                 try { link.leave(); } catch {}
                 // The board's own bridge takes its link back, unless it is restarting,
                 // which it does by itself once the Switch has left the room.
-                try { await device.command('LDN_ADAPTER uart', 2000); } catch (error) { this.log(`The board did not take its adapter link back: ${error.message}`); }
+                try { await device.command('LDN_ADAPTER uart', 2000); } catch (error) { this.log(`La placa no recuperó su enlace con el adaptador: ${error.message}`); }
             }
         }
     }
@@ -123,7 +123,7 @@ export class TradeSession {
             if (signal?.aborted) throw new CancelledError();
             if (this.failure) throw this.failure;
             // The board restarts itself when a room ends; that is the visit finishing.
-            if (!device.attached) { this.log('The board is restarting, which it does when the room ends.'); break; }
+            if (!device.attached) { this.log('La placa se está reiniciando, como hace al terminar la sala.'); break; }
             if (this.declineRequested) { this.declineRequested = false; engine.decline(); }
             if (this.offerRequested >= 0) {
                 const slot = this.offerRequested;
@@ -138,7 +138,7 @@ export class TradeSession {
             const now = seconds();
             if (link.hostFrames !== lastFrames) { lastFrames = link.hostFrames; lastMoved = now; }
             if (link.connected && lastMoved > 0 && now - lastMoved > SILENT_S)
-                throw new ConnectionError(`The Switch stopped answering for ${SILENT_S}s, so the link closed. Leave the room on the Switch and connect again.`);
+                throw new ConnectionError(`La Switch dejó de responder durante ${SILENT_S}s, así que se cerró el enlace. Sal de la sala en la Switch y conecta de nuevo.`);
             if (now >= nextPoll && !link.connected) {
                 nextPoll = now + POLL_MS / 1000;
                 const line = await this.describe(link);
@@ -154,12 +154,12 @@ export class TradeSession {
         try { status = await this.device.bridgeStatus(); } catch { return null; }
         if (!status) return null;
         if (status.state === 'scan') {
-            if (this.device.hearsUnreadableRoom) return 'The board hears a Switch\'s room but cannot read it: the keys it holds do not match. Replace the keys in step 1 with a prod.keys from your own Switch.';
-            return 'The board is looking for a FireRed or LeafGreen room. Open the Trade Center on the Switch as the group leader.';
+            if (this.device.hearsUnreadableRoom) return 'La placa oye una sala de la Switch pero no puede leerla: las claves que tiene no coinciden. Reemplaza las claves del paso 1 con un prod.keys de tu propia Switch.';
+            return 'La placa busca una sala de Rojo Fuego o Verde Hoja. Abre el Centro de Intercambio en la Switch como líder del grupo.';
         }
-        if (status.state === 'stopped' || status.state === 'idle') return 'The board is not looking for a room. Unplug it and plug it back in.';
-        if (status.state !== 'run') return 'The board is joining the Switch’s room.';
-        return link.room === null ? 'In the room. Waiting for it to be offered for trading.' : 'In the room, joining the trade.';
+        if (status.state === 'stopped' || status.state === 'idle') return 'La placa no busca ninguna sala. Desenchúfala y vuelve a enchufarla.';
+        if (status.state !== 'run') return 'La placa se está uniendo a la sala de la Switch.';
+        return link.room === null ? 'En la sala. Esperando a que se ofrezca para intercambiar.' : 'En la sala, uniéndose al intercambio.';
     }
 
     // ---- the trade pool
@@ -191,10 +191,10 @@ export class TradeSession {
                     this.engine.releaseParty();
                     return;
                 } catch (error) {
-                    this.log(`Trade pool: ${error.message}`);
+                    this.log(`Bolsa de intercambio: ${error.message}`);
                     if (signal?.aborted) return;
                     if (attempt >= FIRST_TRIES || !(error instanceof PoolError)) {
-                        this.failure ??= new ConnectionError(`${error.message} There is nothing to trade without it, so the visit ended.`);
+                        this.failure ??= new ConnectionError(`${error.message} Sin ella no hay nada que intercambiar, así que la visita terminó.`);
                         return;
                     }
                     await sleep(1000);
@@ -215,10 +215,10 @@ export class TradeSession {
                 const mail = index >= 0 && engine.hostMail ? engine.hostMail.subarray(index * MAIL_SIZE, (index + 1) * MAIL_SIZE) : null;
                 this.given = { wire, record: poolRecord(wire, { mail, game: engine.hostGame, ribbons: engine.hostRibbons }) };
                 accepted = await this.pool.propose(this.given.record, deadline(signal, POOL_PATIENCE_MS));
-                if (!accepted) this.phase('The trade pool will not take that Pokémon. Choose another on the Switch.', 'warn');
+                if (!accepted) this.phase('La bolsa de intercambio no acepta ese Pokémon. Elige otro en la Switch.', 'warn');
             } catch (error) {
-                this.log(`Trade pool: ${error.message}`);
-                this.phase('The trade pool stopped answering, so this trade was called off. Leave the trade menu on the Switch and sit down again.', 'warn');
+                this.log(`Bolsa de intercambio: ${error.message}`);
+                this.phase('La bolsa de intercambio dejó de responder, así que se canceló este intercambio. Sal del menú de intercambio en la Switch y siéntate de nuevo.', 'warn');
             }
             engine.verdict(accepted);
         });
@@ -232,7 +232,7 @@ export class TradeSession {
         return this.poolStep(async () => {
             let sealed = false;
             try { sealed = await this.pool.complete(new Pk3(given.wire), taken.pk, deadline(signal, POOL_PATIENCE_MS)); }
-            catch (error) { this.log(`Trade pool: ${error.message}`); }
+            catch (error) { this.log(`Bolsa de intercambio: ${error.message}`); }
             this.emit({ event: 'pool_traded', gave: received, got: taken.wire, sealed });
             // A swap the pool did not seal leaves it offering the Pokémon that has just
             // gone to the Switch, which only a new connection changes.
@@ -258,9 +258,9 @@ export class TradeSession {
             this.showPoolMon();
         } catch (error) {
             if (!(error instanceof PoolError) && error?.name !== 'DataError') this.failure ??= error;
-            this.log(`Trade pool: ${error.message}`);
+            this.log(`Bolsa de intercambio: ${error.message}`);
             this.poolLost = true;
-            this.phase('The trade pool could not be reached for another Pokémon. Disconnect and connect again.', 'warn');
+            this.phase('No se pudo contactar con la bolsa para otro Pokémon. Desconecta y conecta de nuevo.', 'warn');
         } finally {
             this.engine.releaseParty();
         }
@@ -272,7 +272,7 @@ export class TradeSession {
         this.poolLost = true;
         const engine = this.engine;
         if (engine.menuComplete || engine.sentParty > 0) {
-            this.phase('The trade pool dropped the connection. Leave the trade menu on the Switch and sit down again for a new Pokémon.', 'warn');
+            this.phase('La bolsa de intercambio cortó la conexión. Sal del menú de intercambio en la Switch y siéntate de nuevo para otro Pokémon.', 'warn');
             return;
         }
         this.replaceFromPool(signal, true);

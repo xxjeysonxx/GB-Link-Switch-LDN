@@ -41,7 +41,7 @@ function ratesFor(port) {
 // last used by a tool that reads with VMIN=0 (anything built on pyserial, esptool
 // included) makes the browser's first read come back empty, which it reports as a lost
 // device. Replugging the board resets the settings.
-export const PORT_LOST_ADVICE = 'The browser lost the port the moment it opened it. On Linux this happens after another serial program has used the port: unplug the board and plug it back in, then connect again.';
+export const PORT_LOST_ADVICE = 'El navegador perdió el puerto en cuanto lo abrió. En Linux pasa cuando otro programa serie ha usado el puerto: desenchufa la placa y vuelve a enchufarla, y conecta de nuevo.';
 
 // Whether version string `candidate` is newer than `than` (dotted numbers).
 export function newer(candidate, than) {
@@ -188,26 +188,26 @@ export class EspDevice extends EventTarget {
     silenceExplained() {
         const text = this.bootText;
         if (/waiting for download/i.test(text)) {
-            return Object.assign(new Error('The chip is sitting in its bootloader.'), { code: 'download-mode' });
+            return Object.assign(new Error('El chip está en su bootloader.'), { code: 'download-mode' });
         }
         // Nothing to start: the ROM finds no bootloader or the bootloader no application,
         // and the chip restarts for ever. Looks like a crash loop, but it is an empty board.
         if (/invalid header|No bootable app/i.test(text)) {
-            return Object.assign(new Error('No bridge firmware answered on this port.'), { code: 'no-firmware' });
+            return Object.assign(new Error('Ningún firmware de puente respondió en este puerto.'), { code: 'no-firmware' });
         }
         const crash = text.match(/ESP_ERROR_CHECK failed[^\r\n]*|abort\(\) was called[^\r\n]*|Guru Meditation Error[^\r\n]*|Brownout detector was triggered/);
         const restarts = (text.match(/rst:0x/g) ?? []).length;
         if (crash || restarts >= 2) {
             const detail = ['file:', 'func:', 'expression:']
                 .map((label) => text.match(new RegExp(`${label}[^\\r\\n]*`))?.[0]).filter(Boolean).join(' ');
-            return Object.assign(new Error('The firmware on this board crashes as it starts, and restarts.'),
+            return Object.assign(new Error('El firmware de esta placa falla al arrancar y se reinicia.'),
                 { code: 'crash-loop', detail: [crash?.[0], detail].filter(Boolean).join(' ') });
         }
         const project = text.match(/Project name:\s+(\S+)/)?.[1];
         if (project && !project.startsWith('ldn_bridge')) {
-            return Object.assign(new Error(`This board is running other firmware (${project}).`), { code: 'no-firmware' });
+            return Object.assign(new Error(`Esta placa tiene otro firmware (${project}).`), { code: 'no-firmware' });
         }
-        return Object.assign(new Error('No bridge firmware answered on this port.'), { code: 'no-firmware' });
+        return Object.assign(new Error('Ningún firmware de puente respondió en este puerto.'), { code: 'no-firmware' });
     }
 
     async readLoop() {
@@ -301,8 +301,8 @@ export class EspDevice extends EventTarget {
     // handshake is done only the handshake itself may talk.
     command(text, timeoutMs = 2000, handshake = false) {
         const run = () => new Promise((resolve, reject) => {
-            if (!this.writer) { reject(new Error('Not connected')); return; }
-            if (!this.attached && !handshake) { reject(new Error('The ESP32 board is restarting')); return; }
+            if (!this.writer) { reject(new Error('Sin conexión')); return; }
+            if (!this.attached && !handshake) { reject(new Error('La placa ESP32 se está reiniciando')); return; }
             const request = (this.request = (this.request % 0x7fffffff) + 1);
             const entry = { request, lines: [], resolve, timer: null };
             entry.timer = setTimeout(() => {
@@ -333,7 +333,7 @@ export class EspDevice extends EventTarget {
     }
 
     writeRaw(bytes) {
-        if (!this.writer) return Promise.reject(new Error('Not connected'));
+        if (!this.writer) return Promise.reject(new Error('Sin conexión'));
         return this.writer.write(bytes);
     }
 

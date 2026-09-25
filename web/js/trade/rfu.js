@@ -120,7 +120,7 @@ export class BlockReceive {
     }
 
     init(count) {
-        if (count < 1 || count > 32) throw new DataError('Invalid RFU fragment count');
+        if (count < 1 || count > 32) throw new DataError('Número de fragmentos RFU no válido');
         if (this.receiving && !this.done && count === this.count) return;
         this.count = count;
         this.last = -1;

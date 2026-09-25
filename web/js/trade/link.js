@@ -41,7 +41,7 @@ export class AdapterLink {
         if (type === RFU.CONNECT_ACK) {
             if (this.connected) return;
             this.connected = true;
-            this.emit('Joined the room the Switch is hosting');
+            this.emit('Unido a la sala que aloja la Switch');
             return;
         }
         if (type === RFU.DISCONNECT) { this.disconnected = true; return; }
@@ -63,7 +63,7 @@ export class AdapterLink {
         if (this.room !== devid) { this.room = devid; this.requested = false; this.onRoom?.(packet); }
         if (this.connected || this.requested) return;
         this.requested = true;
-        this.emit('Asking to join the room');
+        this.emit('Pidiendo unirse a la sala');
         this.send(command(RFU.CONNECT_REQ, devid));
     }
 
@@ -72,13 +72,13 @@ export class AdapterLink {
     deliver(payload) {
         const slots = [];
         if (payload.length > 1) {
-            if (payload.length < 3) throw new DataError('Invalid parent frame');
+            if (payload.length < 3) throw new DataError('Trama padre no válida');
             const f = payload[0] | (payload[1] << 8) | (payload[2] << 16), state = (f >> 14) & 15;
             if (state === 4) {
                 this.uni = true;
                 for (let o = 3; o + 14 <= payload.length; o += 14) slots.push(payload.slice(o, o + 14));
             } else if (((f >> 13) & 1) === 0) {
-                if (state === 2 && payload.length > 3 && payload[3] !== 5) throw new DataError(`The room refused the join: ${payload[3]}`);
+                if (state === 2 && payload.length > 3 && payload[3] !== 5) throw new DataError(`La sala rechazó la unión: ${payload[3]}`);
                 if (state === 1 || state === 2 || state === 3) this.niAck = ni(state, (f >> 11) & 3, (f >> 9) & 3, 1, new Uint8Array(0));
             }
         }
@@ -94,7 +94,7 @@ export class AdapterLink {
             }
             if (!this.uni) return null;
             this.niDone = true;
-            this.emit('Adapter name exchange complete');
+            this.emit('Intercambio de nombres del adaptador completado');
         }
         let out = this.engine.tick();
         // Nothing to say while both players sit in the room: the game still presses a
@@ -118,12 +118,12 @@ export class AdapterLink {
         if (!this.engine.seated && this.engine.established && this.engine.hostReady && this.engine.inSeatPhase) {
             this.engine.sit();
             this.heldKey = 22;
-            this.emit('Taking the right seat');
+            this.emit('Ocupando el asiento correcto');
         }
         if (this.engine.hostExiting && !this.exiting) {
             this.exiting = true;
             this.heldKey = 23;
-            this.emit('Responding to the Switch leaving');
+            this.emit('Respondiendo a la salida de la Switch');
         }
     }
 

@@ -64,7 +64,7 @@ export class PoolClient {
             const socket = new this.Socket(this.url);
             socket.binaryType = 'arraybuffer';
             this.socket = socket;
-            const unreachable = () => { clearTimeout(timer); if (this.socket === socket) this.close(); reject(new PoolError('The trade pool could not be reached.')); };
+            const unreachable = () => { clearTimeout(timer); if (this.socket === socket) this.close(); reject(new PoolError('No se pudo contactar con la bolsa de intercambio.')); };
             const timer = setTimeout(unreachable, CONNECT_MS);
             socket.onopen = () => { clearTimeout(timer); this.send('VEC3', CLIENT_VERSION); resolve(); };
             socket.onerror = unreachable;
@@ -96,7 +96,7 @@ export class PoolClient {
     }
 
     write(kind, tag, data = null) {
-        if (!this.socket || this.socket.readyState !== 1) throw new PoolError('The connection to the trade pool was lost.');
+        if (!this.socket || this.socket.readyState !== 1) throw new PoolError('Se perdió la conexión con la bolsa de intercambio.');
         const packet = new Uint8Array(5 + (data ? 2 + data.length : 0));
         packet[0] = kind.charCodeAt(0);
         for (let i = 0; i < 4; i++) packet[1 + i] = tag.charCodeAt(i);
@@ -136,11 +136,11 @@ export class PoolClient {
     async receive(tag, signal, timeoutMs = 20000) {
         const deadline = Date.now() + timeoutMs;
         for (;;) {
-            if (signal?.aborted) throw new PoolError('The trade pool did not answer in time.');
+            if (signal?.aborted) throw new PoolError('La bolsa de intercambio no respondió a tiempo.');
             const data = this.takeCounted(tag);
             if (data) return data;
-            if (this.closed) throw new PoolError('The connection to the trade pool was lost.');
-            if (Date.now() > deadline) throw new PoolError('The trade pool stopped answering.');
+            if (this.closed) throw new PoolError('Se perdió la conexión con la bolsa de intercambio.');
+            if (Date.now() > deadline) throw new PoolError('La bolsa de intercambio dejó de responder.');
             this.write('G', tag);
             await this.arrival(ASK_EVERY_MS);
         }
@@ -158,11 +158,11 @@ export class PoolClient {
     // trades, and the mail it holds if any.
     async fetchMon(signal) {
         const data = await this.receive('P3SI', signal);
-        if (data.length < RECORD_SIZE) throw new PoolError('The trade pool has no Pokémon to offer right now.');
+        if (data.length < RECORD_SIZE) throw new PoolError('La bolsa de intercambio no tiene Pokémon que ofrecer ahora mismo.');
         const record = data.slice(0, RECORD_SIZE);
         const wire = record.slice(0, MON_SIZE);
         const pk = new Pk3(wire);
-        if (!pk.checksumValid || pk.species === 0 || pk.isBadEgg) throw new DataError('The trade pool sent a Pokémon this page cannot read.');
+        if (!pk.checksumValid || pk.species === 0 || pk.isBadEgg) throw new DataError('La bolsa de intercambio envió un Pokémon que esta página no puede leer.');
         return { record, wire, pk, mail: pk.hasMail ? record.slice(MON_SIZE, MON_SIZE + MAIL_SIZE) : null };
     }
 

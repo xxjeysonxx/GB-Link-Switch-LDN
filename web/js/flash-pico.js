@@ -40,7 +40,7 @@ export async function chooseBootloader() {
         }
         await sleep(400);
     }
-    throw new Error('The adapter could not be opened. If several "RP2 Boot" entries are listed, pick another one.');
+    throw new Error('No se pudo abrir el adaptador. Si aparecen varias entradas "RP2 Boot", elige otra.');
 }
 
 export function bootloaderFrom(device) {
@@ -53,17 +53,17 @@ export async function flashAdapter(picoboot, image, { onStatus = () => {}, onPro
         await connection.resetInterface();
         await connection.exitXip();
 
-        onStatus('Erasing…');
+        onStatus('Borrando…');
         for (let at = 0; at < image.data.length; at += ERASE_STEP) {
             await connection.flashErase(image.address + at, Math.min(ERASE_STEP, image.data.length - at));
             onProgress(ERASE_SHARE * Math.min(1, (at + ERASE_STEP) / image.data.length));
         }
-        onStatus('Writing… do not unplug the adapter.');
+        onStatus('Escribiendo… no desenchufes el adaptador.');
         for (let at = 0; at < image.data.length; at += WRITE_STEP) {
             await connection.flashWrite(image.address + at, image.data.subarray(at, at + WRITE_STEP));
             onProgress(ERASE_SHARE + (1 - ERASE_SHARE) * Math.min(1, (at + WRITE_STEP) / image.data.length));
         }
-        onStatus('Written. Restarting the adapter…');
+        onStatus('Escrito. Reiniciando el adaptador…');
         try { await connection.reboot(REBOOT_DELAY_MS); } catch {}   // the link drops as it restarts
     } finally {
         await release(picoboot);

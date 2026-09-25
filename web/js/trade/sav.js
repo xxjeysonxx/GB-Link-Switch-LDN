@@ -57,7 +57,7 @@ function readSlot(view, base) {
 function readActiveSlot(view) {
     const slot1 = readSlot(view, 0);
     const slot2 = view.length >= 2 * SLOT_SIZE ? readSlot(view, SLOT_SIZE) : { valid: false };
-    if (!slot1.valid && !slot2.valid) throw new DataError('This does not look like a Generation 3 save file, or both its save slots are damaged.');
+    if (!slot1.valid && !slot2.valid) throw new DataError('Esto no parece un archivo de guardado de tercera generación, o sus dos ranuras están dañadas.');
     if (slot1.valid && (!slot2.valid || slot1.saveIndex > slot2.saveIndex)) return slot1;
     return slot2;
 }
@@ -71,7 +71,7 @@ function readPcBuffer(view) {
     let at = 0;
     for (let id = PC_FIRST_SECTION; id <= PC_LAST_SECTION; id++) {
         const section = slot.sections.get(id);
-        if (!section) throw new DataError('The save file is missing its box data.');
+        if (!section) throw new DataError('Al archivo de guardado le faltan los datos de las cajas.');
         buffer.set(section, at);
         at += section.length;
     }

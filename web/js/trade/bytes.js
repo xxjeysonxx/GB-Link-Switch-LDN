@@ -16,7 +16,7 @@ export function wb32(b, o, v) { wb16(b, o, (v >>> 16) & 0xffff); wb16(b, o + 2, 
 export function wb64(b, o, v) { wb32(b, o, Number((v >> 32n) & 0xffffffffn)); wb32(b, o + 4, Number(v & 0xffffffffn)); }
 
 export function fromHex(text) {
-    if (text.length % 2 || /[^0-9a-f]/i.test(text)) throw new DataError('Invalid hex string');
+    if (text.length % 2 || /[^0-9a-f]/i.test(text)) throw new DataError('Cadena hexadecimal no válida');
     const out = new Uint8Array(text.length / 2);
     for (let i = 0; i < out.length; i++) out[i] = parseInt(text.substr(i * 2, 2), 16);
     return out;
@@ -55,7 +55,7 @@ export function ipString(bytes, o = 0) { return `${bytes[o]}.${bytes[o + 1]}.${b
 
 export function ipBytes(text) {
     const parts = text.split('.');
-    if (parts.length !== 4 || parts.some((p) => !/^\d{1,3}$/.test(p) || Number(p) > 255)) throw new DataError(`Invalid IPv4 address: ${text}`);
+    if (parts.length !== 4 || parts.some((p) => !/^\d{1,3}$/.test(p) || Number(p) > 255)) throw new DataError(`Dirección IPv4 no válida: ${text}`);
     return Uint8Array.from(parts, Number);
 }
 

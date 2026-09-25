@@ -18,7 +18,7 @@ export class Party {
 
     read(record) {
         const entries = record.slots;
-        if (!Array.isArray(entries) || entries.length !== 6) throw new Error('A party record needs six slots.');
+        if (!Array.isArray(entries) || entries.length !== 6) throw new Error('Un equipo necesita seis casillas.');
         this.slots = entries.map((entry) => (entry ? parse(fromHex(entry.toLowerCase())) : null));
         this.selected = Number(record.selected) || 0;
         if (!this.slots[this.selected]) this.selected = this.slots.findIndex(Boolean);
@@ -71,9 +71,9 @@ export class Party {
 }
 
 export function describe(pk) {
-    const kind = pk.isEgg ? 'Egg' : pk.speciesName;
+    const kind = pk.isEgg ? 'Huevo' : pk.speciesName;
     const gender = pk.gender === 0 ? '♂' : pk.gender === 1 ? '♀' : '';
-    return { name: pk.isEgg ? 'Egg' : pk.nickname || kind, kind, level: pk.isEgg ? '' : `Lv. ${pk.level}`, gender, shiny: pk.isShiny && !pk.isEgg };
+    return { name: pk.isEgg ? 'Huevo' : pk.nickname || kind, kind, level: pk.isEgg ? '' : `Nv. ${pk.level}`, gender, shiny: pk.isShiny && !pk.isEgg };
 }
 
 export { Pk3 };

@@ -19,13 +19,13 @@
     var a = document.createElement('a');
     a.id = 'gblink-launcher-return';
     a.href = LAUNCHER_URL;
-    a.setAttribute('aria-label', 'Return to the GB Link launcher');
+    a.setAttribute('aria-label', 'Volver al lanzador de GB Link');
     a.innerHTML =
       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"' +
       ' stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
       '<line x1="19" y1="12" x2="5" y2="12"></line>' +
       '<polyline points="12 19 5 12 12 5"></polyline></svg>' +
-      '<span>Launcher</span>';
+      '<span>Lanzador</span>';
     a.style.cssText = [
       'position:fixed', 'top:12px', 'left:12px', 'z-index:2147483647',
       'display:inline-flex', 'align-items:center', 'gap:6px',
